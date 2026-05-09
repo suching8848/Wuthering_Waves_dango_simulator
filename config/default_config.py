@@ -55,7 +55,7 @@ SIMULATION_CONFIG = {
     "log_stacks": True,
     "log_rankings": True,
     "random_seed": None,
-    "boss_carries_upper_stack": False,
+    "boss_carries_upper_stack": True,
 }
 
 SKILL_CONFIG = {

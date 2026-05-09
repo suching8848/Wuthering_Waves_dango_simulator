@@ -31,8 +31,8 @@ class Dango:
         self.cell = self.progress % board_length
 
     def advance_backward(self, steps: int, board_length: int = 32) -> None:
-        self.progress -= steps
-        self.cell = self.progress % board_length
+        self.progress += steps
+        self.cell = (-self.progress) % board_length
 
     def move_to_cell(self, cell: int, board_length: int = 32) -> None:
         self.cell = cell
