@@ -1,7 +1,7 @@
 """Game Engine - Core game logic for Dango Racing Simulator."""
 
 import random
-from typing import Any, Optional
+from typing import Optional
 from models.dango import Dango
 from models.board import Board, DEVICE_BOOST, DEVICE_TRAP, DEVICE_RIFT
 from models.game_state import GameState
@@ -57,6 +57,8 @@ class GameEngine:
 
         if initial_order is None:
             rng.shuffle(normal_dango_ids)
+        else:
+            normal_dango_ids = list(initial_order)
 
         game_state.stack_manager.initialize_stack(normal_dango_ids, cell=0)
 
@@ -167,35 +169,57 @@ class GameEngine:
 
         return move_log
 
+    def _update_group_progress(self, game_state: GameState, moved_group: list[str], steps: int) -> None:
+        for dango_id in moved_group:
+            moved_dango = game_state.get_dango(dango_id)
+            if moved_dango is None:
+                continue
+            moved_dango.advance(steps, game_state.board.length)
+
     def _move_normal_dango(self, game_state: GameState, dango: Dango, steps: int, move_log: dict) -> None:
         stack_manager = game_state.stack_manager
+        current_cell = stack_manager.get_dango_cell(dango.id)
+        if current_cell is None:
+            current_cell = dango.cell
 
-        if dango.is_boss:
-            new_cell = (dango.cell - steps) % game_state.board.length
-        else:
-            new_cell = (dango.cell + steps) % game_state.board.length
-
+        new_cell = (current_cell + steps) % game_state.board.length
         move_log["target_cell_before_device"] = new_cell
 
         moved_group = stack_manager.move_group(dango.id, new_cell)
         move_log["moved_group"] = moved_group
 
-        dango.advance(steps, game_state.board.length)
+        self._update_group_progress(game_state, moved_group, steps)
 
         move_log["final_cell"] = dango.cell
         move_log["final_progress"] = dango.progress
 
     def _move_boss(self, game_state: GameState, boss: Dango, steps: int, move_log: dict) -> None:
         stack_manager = game_state.stack_manager
-        old_cell = boss.cell
+        current_cell = stack_manager.get_dango_cell(boss.id)
+        if current_cell is None:
+            current_cell = boss.cell
 
-        new_cell = (boss.cell - steps) % game_state.board.length
+        moving_group = [boss.id]
+        if self.boss_carries_upper_stack:
+            moving_group += stack_manager.get_upper_stack(boss.id)
+
+        new_cell = (current_cell - steps) % game_state.board.length
         move_log["target_cell_before_device"] = new_cell
+        move_log["moved_group"] = moving_group
 
-        stack_manager.remove_from_stack(boss.id)
+        for dango_id in moving_group:
+            stack_manager.remove_from_stack(dango_id)
+
+        for dango_id in reversed(moving_group[1:]):
+            stack_manager.add_to_stack_top(dango_id, new_cell)
         stack_manager.add_to_stack_bottom(boss.id, new_cell)
 
         boss.advance_backward(steps, game_state.board.length)
+        for dango_id in moving_group[1:]:
+            carried_dango = game_state.get_dango(dango_id)
+            if carried_dango is None:
+                continue
+            carried_dango.advance_backward(steps, game_state.board.length)
 
         move_log["final_cell"] = boss.cell
         move_log["final_progress"] = boss.progress
@@ -208,21 +232,53 @@ class GameEngine:
         if boss is None:
             return
 
-        if dango.cell == boss.cell and dango.skill:
+        boss_cell = game_state.stack_manager.get_dango_cell(boss.id)
+        dango_cell = game_state.stack_manager.get_dango_cell(dango.id)
+        if dango_cell is None:
+            dango_cell = dango.cell
+
+        if dango_cell == boss_cell and dango.skill:
             dango.skill.on_meet_boss(game_state)
             game_state.logs.append({
                 "type": "meet_boss",
                 "dango_id": dango.id,
-                "cell": dango.cell,
+                "cell": dango_cell,
                 "round": game_state.round_no
             })
 
+    def _move_device_group(self, game_state: GameState, bottom_dango_id: str, steps: int) -> list[str]:
+        if steps == 0:
+            return []
+
+        stack_manager = game_state.stack_manager
+        current_cell = stack_manager.get_dango_cell(bottom_dango_id)
+        if current_cell is None:
+            return []
+
+        stack = stack_manager.get_stack(current_cell)
+        if bottom_dango_id not in stack:
+            return []
+
+        index = stack.index(bottom_dango_id)
+        moving_group = stack[index:]
+        if not moving_group:
+            return []
+
+        new_cell = (current_cell + steps) % game_state.board.length
+        moved_group = stack_manager.move_group(bottom_dango_id, new_cell)
+        self._update_group_progress(game_state, moving_group, steps)
+        return moved_group
+
     def _check_device_trigger(self, game_state: GameState, dango: Dango, move_log: dict) -> None:
-        device = game_state.board.get_device_at_cell(dango.cell)
+        cell = game_state.stack_manager.get_dango_cell(dango.id)
+        if cell is None:
+            cell = dango.cell
+
+        device = game_state.board.get_device_at_cell(cell)
         if device is None:
             return
 
-        device_log = {"device": device, "cell": dango.cell, "triggered": True}
+        device_log = {"device": device, "cell": cell, "triggered": True}
 
         if dango.skill:
             skill_result = dango.skill.on_device_trigger(game_state, device)
@@ -234,26 +290,29 @@ class GameEngine:
                 extra = device_log["skill_effect"].get("extra_steps", 3)
             else:
                 extra = 1
-            dango.advance(extra, game_state.board.length)
+            moved_group = self._move_device_group(game_state, dango.id, extra)
             device_log["boost_steps"] = extra
-            game_state.stack_manager.add_to_stack_top(dango.id, dango.cell)
+            if moved_group:
+                device_log["moved_group"] = moved_group
 
         elif device == DEVICE_TRAP:
             if "skill_effect" in device_log:
                 extra = device_log["skill_effect"].get("extra_steps", 1)
             else:
                 extra = 1
-            dango.advance_backward(extra, game_state.board.length)
+            moved_group = self._move_device_group(game_state, dango.id, -extra)
             device_log["trap_steps"] = -extra
-            game_state.stack_manager.remove_from_stack(dango.id)
-            game_state.stack_manager.add_to_stack_top(dango.id, dango.cell)
+            if moved_group:
+                device_log["moved_group"] = moved_group
 
         elif device == DEVICE_RIFT:
             boss = game_state.get_boss()
             boss_id = boss.id if boss else "budaiwang"
-            game_state.stack_manager.shuffle_cell(dango.cell, game_state.rng, boss_id)
+            game_state.stack_manager.shuffle_cell(cell, game_state.rng, boss_id)
             device_log["shuffled"] = True
 
+        move_log["final_cell"] = dango.cell
+        move_log["final_progress"] = dango.progress
         move_log["device_trigger"] = device_log
 
     def _on_round_end(self, game_state: GameState) -> None:
@@ -261,15 +320,13 @@ class GameEngine:
             if dango.skill:
                 dango.skill.on_round_end(game_state)
 
-        boss = game_state.get_boss()
-        if boss and game_state.is_boss_active():
-            if boss.skill:
-                boss.skill.on_round_end(game_state)
-
     def _check_winner(self, game_state: GameState) -> bool:
         for dango in game_state.get_normal_dangos():
             if dango.has_reached_goal(self.board.length):
-                stack = game_state.stack_manager.get_stack(dango.cell)
+                cell = game_state.stack_manager.get_dango_cell(dango.id)
+                if cell is None:
+                    cell = dango.cell
+                stack = game_state.stack_manager.get_stack(cell)
                 if stack:
                     top_dango_id = stack[-1]
                     top_dango = game_state.get_dango(top_dango_id)
@@ -285,6 +342,8 @@ class GameEngine:
 
         for dango in normal_dangos:
             cell = game_state.stack_manager.get_dango_cell(dango.id)
+            if cell is None:
+                cell = dango.cell
             stack = game_state.stack_manager.get_stack(cell) if cell is not None else []
             stack_position = len(stack) - stack.index(dango.id) if dango.id in stack else 0
 
@@ -292,7 +351,7 @@ class GameEngine:
                 "id": dango.id,
                 "name": dango.name,
                 "progress": dango.progress,
-                "cell": dango.cell,
+                "cell": cell,
                 "stack_position": stack_position,
             })
 

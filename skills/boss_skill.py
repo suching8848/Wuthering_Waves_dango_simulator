@@ -54,8 +54,7 @@ class BossSkill(BaseSkill):
             stack_manager.remove_from_stack(self.dango_id)
 
         stack_manager.add_to_stack_bottom(self.dango_id, 0)
-        boss.cell = 0
-        boss.progress = (boss.progress // game_state.board.length) * game_state.board.length
+        boss.move_to_cell(0, game_state.board.length)
 
     def on_game_end(self, game_state, winner) -> None:
         pass

@@ -2,7 +2,6 @@
 
 import random
 import time
-from typing import Any, Optional
 from core.game_engine import GameEngine
 from utils.logger import GameLogger, StatsLogger
 
@@ -71,8 +70,7 @@ class Simulator:
             base_seed = int.from_bytes(os.urandom(4), 'big')
 
         for i in range(num_simulations):
-            if (i + 1) % 100 == 0:
-                print(f"Progress: {i + 1}/{num_simulations}")
+            self.stats_logger.log_progress(i + 1, num_simulations)
 
             sim_rng = random.Random(base_seed + i)
 
