@@ -141,6 +141,14 @@ python main.py multi -n 10000 --seed 42
 
 ## 更新内容
 
+### v2.2
+
+- 修复卡提希娅「绝境逆袭」全平局误判：`_is_last_place` 增加 `min < max` 判定，全平局时不再激活。
+- 修复 Boss 携带普通团子倒退时报错：被带走的普通团子改用 `advance(-steps)`。
+- 修复 `_apply_group_displacement` 中 Boss 对装置触发的方向处理缺失。
+- 修复 `_check_device_trigger` 中 `final_cell` 未使用装置后位置的问题。
+- 清理死代码：`move_to_cell` 的 `progress < 0` 分支、`boss_skill.py` 的 `_get_last_place_dango` / `_teleport_boss_to_start`。
+
 ### v2.1
 
 - 修复卡提希娅「绝境逆袭」激活判定 Bug：`_is_last_place` 比较符号从 `>` 修正为 `<`，现在正确地在最后一名时激活而非第一名。
