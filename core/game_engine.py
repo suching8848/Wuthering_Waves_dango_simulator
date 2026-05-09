@@ -57,8 +57,10 @@ class GameEngine:
 
         if initial_order is None:
             rng.shuffle(normal_dango_ids)
+            game_state.initial_stack_order = list(normal_dango_ids)
         else:
             normal_dango_ids = list(initial_order)
+            game_state.initial_stack_order = list(normal_dango_ids)
 
         game_state.stack_manager.initialize_stack(normal_dango_ids, cell=0)
 
