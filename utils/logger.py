@@ -79,6 +79,13 @@ class GameLogger:
 
         print(f"  最终移动: {action['final_steps']}")
 
+        skill_logs = [log for log in game_state.logs
+                      if log.get("dango_id") == action["dango_id"]
+                      and log.get("round") == game_state.round_no
+                      and log.get("type") in ("skill_trigger", "skill_activate")]
+        for skill_log in skill_logs:
+            print(f"  [技能] {skill_log.get('desc', '')}")
+
         moved_group = action.get("moved_group", [])
         if moved_group:
             group_names = []

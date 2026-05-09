@@ -29,5 +29,13 @@ class FeixueSkill(BaseSkill):
 
         if dango.state.get("metBoss", False):
             extra = self.config.get("extra_steps_after_meeting_boss", 1)
+            game_state.logs.append({
+                "type": "skill_trigger",
+                "dango_id": self.dango_id,
+                "skill_name": self.get_name(),
+                "desc": f"追击之魂：+{extra} 格",
+                "extra_steps": extra,
+                "round": game_state.round_no
+            })
             return base_steps + extra
         return base_steps

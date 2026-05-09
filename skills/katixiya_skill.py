@@ -19,6 +19,13 @@ class KatixiyaSkill(BaseSkill):
 
         if self._is_last_place(game_state, self.dango_id):
             dango.state["skill_activated"] = True
+            game_state.logs.append({
+                "type": "skill_activate",
+                "dango_id": self.dango_id,
+                "skill_name": self.get_name(),
+                "desc": "绝境逆袭已激活（处于最后一名），剩余回合60%概率额外+2格",
+                "round": game_state.round_no
+            })
 
     def modify_move_steps(self, game_state, base_steps: int) -> int:
         dango = game_state.get_dango(self.dango_id)
@@ -29,6 +36,14 @@ class KatixiyaSkill(BaseSkill):
             prob = self.config.get("activation_probability", 0.6)
             extra = self.config.get("extra_steps", 2)
             if game_state.rng.random() < prob:
+                game_state.logs.append({
+                    "type": "skill_trigger",
+                    "dango_id": self.dango_id,
+                    "skill_name": self.get_name(),
+                    "desc": f"绝境逆袭触发（{int(prob * 100)}%概率）：+{extra} 格",
+                    "extra_steps": extra,
+                    "round": game_state.round_no
+                })
                 return base_steps + extra
         return base_steps
 
@@ -42,6 +57,6 @@ class KatixiyaSkill(BaseSkill):
             return True
 
         for d in normal_dangos:
-            if d.id != dango_id and d.progress > target.progress:
+            if d.id != dango_id and d.progress < target.progress:
                 return False
         return True

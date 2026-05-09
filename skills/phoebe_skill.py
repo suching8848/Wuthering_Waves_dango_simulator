@@ -21,6 +21,14 @@ class PhoebeSkill(BaseSkill):
         if triggered:
             current_extra = dango.state.get("pending_extra_steps", 0)
             dango.state["pending_extra_steps"] = current_extra + extra_steps
+            game_state.logs.append({
+                "type": "skill_trigger",
+                "dango_id": self.dango_id,
+                "skill_name": self.get_name(),
+                "desc": f"幸运掷骰触发（{int(prob * 100)}%概率）：+{extra_steps} 格",
+                "extra_steps": extra_steps,
+                "round": game_state.round_no
+            })
 
         return {
             "skill_triggered": triggered,
