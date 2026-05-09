@@ -37,8 +37,6 @@ class Dango:
     def move_to_cell(self, cell: int, board_length: int = 32) -> None:
         self.cell = cell
         self.progress = (self.progress // board_length) * board_length + cell
-        if self.progress < 0:
-            self.progress += ((-self.progress // board_length) + 1) * board_length
 
     def __repr__(self) -> str:
         return f"Dango({self.id}, progress={self.progress}, cell={self.cell})"

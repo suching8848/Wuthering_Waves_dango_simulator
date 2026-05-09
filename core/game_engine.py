@@ -218,7 +218,10 @@ class GameEngine:
             if moved_dango is None:
                 continue
             if moved_dango.is_boss:
-                moved_dango.advance_backward(steps, game_state.board.length)
+                if reverse:
+                    moved_dango.advance_backward(steps, game_state.board.length)
+                else:
+                    moved_dango.advance_backward(-steps, game_state.board.length)
             elif reverse:
                 moved_dango.advance(-steps, game_state.board.length)
             else:
@@ -272,7 +275,7 @@ class GameEngine:
             carried_dango = game_state.get_dango(dango_id)
             if carried_dango is None:
                 continue
-            carried_dango.advance_backward(steps, game_state.board.length)
+            carried_dango.advance(-steps, game_state.board.length)
 
         move_log["final_cell"] = boss.cell
         move_log["final_progress"] = boss.progress
@@ -381,7 +384,7 @@ class GameEngine:
             game_state.stack_manager.shuffle_cell(cell, game_state.rng, boss_id)
             device_log["shuffled"] = True
 
-        move_log["final_cell"] = cell
+        move_log["final_cell"] = game_state.stack_manager.get_dango_cell(dango.id)
         move_log["final_progress"] = dango.progress
         move_log["device_trigger"] = device_log
 

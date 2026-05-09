@@ -56,7 +56,6 @@ class KatixiyaSkill(BaseSkill):
         if target is None:
             return True
 
-        for d in normal_dangos:
-            if d.id != dango_id and d.progress < target.progress:
-                return False
-        return True
+        min_progress = min(d.progress for d in normal_dangos)
+        max_progress = max(d.progress for d in normal_dangos)
+        return target.progress == min_progress and min_progress < max_progress
