@@ -35,10 +35,12 @@ class GameEngine:
         game_state.marked_by_siglica = set()
         game_state.winner = None
         game_state.logs = []
+        game_state.boss_spawned = False
 
         self._initialize_dangos(game_state)
         self._initialize_stack(game_state, rng, initial_order)
         self._initialize_skills(game_state)
+        self._initialize_boss(game_state)
 
         return game_state
 
@@ -74,6 +76,15 @@ class GameEngine:
             else:
                 dango.skill = None
 
+    def _initialize_boss(self, game_state: GameState) -> None:
+        boss = game_state.get_boss()
+        if boss is None:
+            return
+
+        boss.progress = 0
+        boss.cell = 0
+        game_state.boss_spawned = False
+
     def run_round(self, game_state: GameState) -> dict:
         game_state.round_no += 1
         round_log = {"round": game_state.round_no, "actions": []}
@@ -81,7 +92,6 @@ class GameEngine:
         self._on_round_start(game_state)
         self._determine_action_order(game_state)
         self._roll_all_dice(game_state)
-        self._siglica_mark_targets(game_state)
         self._execute_all_moves(game_state, round_log)
         self._on_round_end(game_state)
 
@@ -101,6 +111,14 @@ class GameEngine:
             game_state.current_order = list(reversed(game_state.initial_stack_order))
             return
 
+        if game_state.round_no >= game_state.boss_start_round and not game_state.boss_spawned:
+            boss = game_state.get_boss()
+            if boss is not None:
+                boss.progress = 0
+                boss.cell = 0
+                game_state.stack_manager.add_to_stack_bottom(boss.id, 0)
+                game_state.boss_spawned = True
+
         active_ids = game_state.get_active_dango_ids()
         game_state.rng.shuffle(active_ids)
         game_state.current_order = active_ids
@@ -116,16 +134,14 @@ class GameEngine:
                 if dango.skill:
                     dango.skill.on_after_roll(game_state, dice)
 
-    def _siglica_mark_targets(self, game_state: GameState) -> None:
-        siglica = game_state.get_dango("siglica")
-        if siglica and siglica.skill:
-            marked = siglica.skill.mark_targets(game_state)
-            if marked:
-                game_state.logs.append({
-                    "type": "siglica_mark",
-                    "marked": marked,
-                    "round": game_state.round_no
-                })
+                if dango.id == "siglica" and dango.skill:
+                    marked = dango.skill.mark_targets(game_state)
+                    if marked:
+                        game_state.logs.append({
+                            "type": "siglica_mark",
+                            "marked": marked,
+                            "round": game_state.round_no
+                        })
 
     def _execute_all_moves(self, game_state: GameState, round_log: dict) -> None:
         for dango_id in game_state.current_order:
@@ -182,6 +198,32 @@ class GameEngine:
                 continue
             moved_dango.advance(steps, game_state.board.length)
 
+    def _relocate_stack_group(self, game_state: GameState, moving_group: list[str], new_cell: int, boss_at_bottom: bool = False) -> None:
+        stack_manager = game_state.stack_manager
+        for dango_id in moving_group:
+            stack_manager.remove_from_stack(dango_id)
+
+        if boss_at_bottom and moving_group:
+            boss_id = moving_group[0]
+            for dango_id in reversed(moving_group[1:]):
+                stack_manager.add_to_stack_top(dango_id, new_cell)
+            stack_manager.add_to_stack_bottom(boss_id, new_cell)
+        else:
+            for dango_id in reversed(moving_group):
+                stack_manager.add_to_stack_top(dango_id, new_cell)
+
+    def _apply_group_displacement(self, game_state: GameState, moved_group: list[str], steps: int, reverse: bool = False) -> None:
+        for dango_id in moved_group:
+            moved_dango = game_state.get_dango(dango_id)
+            if moved_dango is None:
+                continue
+            if moved_dango.is_boss:
+                moved_dango.advance_backward(steps, game_state.board.length)
+            elif reverse:
+                moved_dango.advance(-steps, game_state.board.length)
+            else:
+                moved_dango.advance(steps, game_state.board.length)
+
     def _move_normal_dango(self, game_state: GameState, dango: Dango, steps: int, move_log: dict) -> None:
         stack_manager = game_state.stack_manager
         current_cell = stack_manager.get_dango_cell(dango.id)
@@ -199,7 +241,7 @@ class GameEngine:
             moved_group = stack_manager.move_group(dango.id, new_cell)
         move_log["moved_group"] = moved_group
 
-        self._update_group_progress(game_state, moved_group, steps)
+        self._apply_group_displacement(game_state, moved_group, steps)
 
         move_log["final_cell"] = dango.cell
         move_log["final_progress"] = dango.progress
@@ -240,7 +282,7 @@ class GameEngine:
             return
 
         boss = game_state.get_boss()
-        if boss is None:
+        if boss is None or not game_state.boss_spawned:
             return
 
         boss_cell = game_state.stack_manager.get_dango_cell(boss.id)
@@ -248,7 +290,11 @@ class GameEngine:
         if dango_cell is None:
             dango_cell = dango.cell
 
-        if dango_cell == boss_cell and dango.skill:
+        met_boss = dango_cell == boss_cell
+        if not met_boss and dango.id == "feixue" and boss_cell is not None and dango_cell is not None:
+            met_boss = dango_cell >= boss_cell
+
+        if met_boss and dango.skill:
             dango.skill.on_meet_boss(game_state)
             game_state.logs.append({
                 "type": "meet_boss",
@@ -257,7 +303,7 @@ class GameEngine:
                 "round": game_state.round_no
             })
 
-    def _move_device_group(self, game_state: GameState, bottom_dango_id: str, steps: int) -> list[str]:
+    def _move_device_group(self, game_state: GameState, bottom_dango_id: str, steps: int, reverse: bool = False, boss_at_bottom: bool = False) -> list[str]:
         if steps == 0:
             return []
 
@@ -275,10 +321,11 @@ class GameEngine:
         if not moving_group:
             return []
 
-        new_cell = (current_cell + steps) % game_state.board.length
-        moved_group = stack_manager.move_group(bottom_dango_id, new_cell)
-        self._update_group_progress(game_state, moving_group, steps)
-        return moved_group
+        delta = -steps if reverse else steps
+        new_cell = (current_cell + delta) % game_state.board.length
+        self._relocate_stack_group(game_state, moving_group, new_cell, boss_at_bottom=boss_at_bottom)
+        self._apply_group_displacement(game_state, moving_group, steps, reverse=reverse)
+        return moving_group
 
     def _check_device_trigger(self, game_state: GameState, dango: Dango, move_log: dict) -> None:
         cell = game_state.stack_manager.get_dango_cell(dango.id)
@@ -301,7 +348,13 @@ class GameEngine:
                 extra = device_log["skill_effect"].get("extra_steps", 3)
             else:
                 extra = 1
-            moved_group = self._move_device_group(game_state, dango.id, extra)
+            moved_group = self._move_device_group(
+                game_state,
+                dango.id,
+                extra,
+                reverse=dango.is_boss,
+                boss_at_bottom=dango.is_boss,
+            )
             device_log["boost_steps"] = extra
             if moved_group:
                 device_log["moved_group"] = moved_group
@@ -311,8 +364,14 @@ class GameEngine:
                 extra = device_log["skill_effect"].get("extra_steps", 1)
             else:
                 extra = 1
-            moved_group = self._move_device_group(game_state, dango.id, -extra)
-            device_log["trap_steps"] = -extra
+            moved_group = self._move_device_group(
+                game_state,
+                dango.id,
+                extra,
+                reverse=not dango.is_boss,
+                boss_at_bottom=dango.is_boss,
+            )
+            device_log["trap_steps"] = -extra if not dango.is_boss else extra
             if moved_group:
                 device_log["moved_group"] = moved_group
 
@@ -322,7 +381,7 @@ class GameEngine:
             game_state.stack_manager.shuffle_cell(cell, game_state.rng, boss_id)
             device_log["shuffled"] = True
 
-        move_log["final_cell"] = dango.cell
+        move_log["final_cell"] = cell
         move_log["final_progress"] = dango.progress
         move_log["device_trigger"] = device_log
 

@@ -19,8 +19,8 @@ class SiglicaSkill(BaseSkill):
 
         ranking = self._calculate_ranking(game_state)
         my_index = -1
-        for i, d in enumerate(ranking):
-            if d.id == self.dango_id:
+        for i, ranked_dango in enumerate(ranking):
+            if ranked_dango.id == self.dango_id:
                 my_index = i
                 break
 
@@ -28,12 +28,8 @@ class SiglicaSkill(BaseSkill):
             return []
 
         mark_count = self.config.get("mark_count", 2)
-        targets = []
-        for i in range(my_index - 1, -1, -1):
-            if len(targets) >= mark_count:
-                break
-            targets.append(ranking[i].id)
-
+        start_index = max(0, my_index - mark_count)
+        targets = [ranked_dango.id for ranked_dango in ranking[start_index:my_index]]
         game_state.marked_by_siglica.update(targets)
         return targets
 

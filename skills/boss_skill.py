@@ -16,23 +16,7 @@ class BossSkill(BaseSkill):
         return base_steps
 
     def on_round_end(self, game_state) -> None:
-        boss = game_state.get_boss()
-        if boss is None:
-            return
-
-        stack_manager = getattr(game_state, 'stack_manager', None)
-        if stack_manager is None:
-            return
-
-        last_place_dango = self._get_last_place_dango(game_state)
-        if last_place_dango is None:
-            return
-
-        boss_cell = stack_manager.get_dango_cell(self.dango_id)
-        last_cell = stack_manager.get_dango_cell(last_place_dango.id)
-
-        if boss_cell is not None and last_cell is not None and boss_cell != last_cell:
-            self._teleport_boss_to_start(game_state)
+        return
 
     def _get_last_place_dango(self, game_state):
         normal_dangos = game_state.get_normal_dangos()
@@ -54,7 +38,8 @@ class BossSkill(BaseSkill):
             stack_manager.remove_from_stack(self.dango_id)
 
         stack_manager.add_to_stack_bottom(self.dango_id, 0)
-        boss.move_to_cell(0, game_state.board.length)
+        boss.progress = 0
+        boss.cell = 0
 
     def on_game_end(self, game_state, winner) -> None:
         pass

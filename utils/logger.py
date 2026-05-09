@@ -51,7 +51,17 @@ class GameLogger:
         for action in round_log.get("actions", []):
             self._log_action(action, game_state)
 
-        print("\n当前排名:")
+        boss = game_state.get_boss()
+        if boss:
+            boss_cell = game_state.stack_manager.get_dango_cell(boss.id)
+            if game_state.round_no < game_state.boss_start_round or not getattr(game_state, 'boss_spawned', False):
+                print(f"布大王状态: 未出场")
+            else:
+                current_cell = boss_cell if boss_cell is not None else boss.cell
+                print(f"布大王状态: 进度 {boss.progress}, 格子 {current_cell}")
+            print()
+
+        print("当前排名:")
         for rank in round_log.get("rankings", []):
             dango = game_state.get_dango(rank["id"])
             name = dango.name if dango else rank["id"]

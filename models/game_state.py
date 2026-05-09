@@ -21,6 +21,7 @@ class GameState:
     logs: list = field(default_factory=list)
     boss_start_round: int = 3
     initial_stack_order: list[str] = field(default_factory=list)
+    boss_spawned: bool = False
 
     def get_dango(self, dango_id: str) -> Optional[Dango]:
         return self.dangos.get(dango_id)
@@ -41,11 +42,11 @@ class GameState:
         return self.round_no >= self.boss_start_round
 
     def get_active_dangos(self) -> list[Dango]:
-        if self.is_boss_active():
+        if self.is_boss_active() and self.boss_spawned:
             return list(self.dangos.values())
         return self.get_normal_dangos()
 
     def get_active_dango_ids(self) -> list[str]:
-        if self.is_boss_active():
+        if self.is_boss_active() and self.boss_spawned:
             return list(self.dangos.keys())
         return [d.id for d in self.get_normal_dangos()]

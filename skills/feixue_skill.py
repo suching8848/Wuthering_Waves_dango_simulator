@@ -20,6 +20,13 @@ class FeixueSkill(BaseSkill):
         if dango is None:
             return base_steps
 
+        boss = game_state.get_boss()
+        if boss is not None and getattr(game_state, "boss_spawned", False):
+            boss_cell = game_state.stack_manager.get_dango_cell(boss.id)
+            dango_cell = game_state.stack_manager.get_dango_cell(dango.id)
+            if boss_cell is not None and dango_cell is not None and dango_cell >= boss_cell:
+                dango.state["metBoss"] = True
+
         if dango.state.get("metBoss", False):
             extra = self.config.get("extra_steps_after_meeting_boss", 1)
             return base_steps + extra
