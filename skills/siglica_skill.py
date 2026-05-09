@@ -17,6 +17,9 @@ class SiglicaSkill(BaseSkill):
         if dango is None or dango.is_boss:
             return []
 
+        if game_state.round_no == 1:
+            return []
+
         ranking = self._calculate_ranking(game_state)
         my_index = -1
         for i, ranked_dango in enumerate(ranking):
