@@ -82,7 +82,14 @@ class StackManager:
 
         index = stack.index(bottom_dango_id)
         moving_dangos = stack[index:]
-        self.stacks[cell] = stack[:index]
+        remaining_stack = stack[:index]
+        if remaining_stack:
+            self.stacks[cell] = remaining_stack
+        else:
+            del self.stacks[cell]
+
+        for d_id in moving_dangos:
+            self.dango_positions.pop(d_id, None)
 
         for d_id in reversed(moving_dangos):
             self.add_to_stack_top(d_id, new_cell)

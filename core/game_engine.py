@@ -95,6 +95,10 @@ class GameEngine:
                 dango.skill.on_round_start(game_state)
 
     def _determine_action_order(self, game_state: GameState) -> None:
+        if game_state.round_no == 1:
+            game_state.current_order = list(reversed(game_state.initial_stack_order))
+            return
+
         active_ids = game_state.get_active_dango_ids()
         game_state.rng.shuffle(active_ids)
         game_state.current_order = active_ids
@@ -185,7 +189,12 @@ class GameEngine:
         new_cell = (current_cell + steps) % game_state.board.length
         move_log["target_cell_before_device"] = new_cell
 
-        moved_group = stack_manager.move_group(dango.id, new_cell)
+        if game_state.round_no == 1:
+            stack_manager.remove_from_stack(dango.id)
+            stack_manager.add_to_stack_top(dango.id, new_cell)
+            moved_group = [dango.id]
+        else:
+            moved_group = stack_manager.move_group(dango.id, new_cell)
         move_log["moved_group"] = moved_group
 
         self._update_group_progress(game_state, moved_group, steps)

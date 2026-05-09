@@ -125,6 +125,8 @@ class GameLogger:
         final_stacks = result.get("final_stacks", {})
         for cell in sorted(final_stacks):
             stack = final_stacks[cell]
+            if not stack:
+                continue
             stack_names = []
             for d_id in stack:
                 d = game_state.get_dango(d_id)

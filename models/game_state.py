@@ -20,6 +20,7 @@ class GameState:
     winner_found_round: Optional[int] = None
     logs: list = field(default_factory=list)
     boss_start_round: int = 3
+    initial_stack_order: list[str] = field(default_factory=list)
 
     def get_dango(self, dango_id: str) -> Optional[Dango]:
         return self.dangos.get(dango_id)

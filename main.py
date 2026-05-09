@@ -23,7 +23,7 @@ def create_config(args) -> dict:
 
 
 def run_single_mode(args, config: dict) -> None:
-    print("运行单次拟合模式...")
+    print("运行单次模拟模式...")
     print(f"随机种子: {args.seed if args.seed else '无'}")
 
     simulator = Simulator(config)
