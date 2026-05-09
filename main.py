@@ -42,7 +42,7 @@ def run_single_mode(args, config: dict) -> None:
 
 
 def run_multi_mode(args, config: dict) -> None:
-    print("运行多次拟合模式...")
+    print("运行多次模拟模式...")
     print(f"模拟次数: {args.num_simulations}")
     print(f"随机种子: {args.seed if args.seed else '无 (随机)'}")
 
@@ -59,11 +59,11 @@ def main():
 
     subparsers = parser.add_subparsers(dest="mode", help="运行模式")
 
-    single_parser = subparsers.add_parser("single", help="单次拟合模式")
+    single_parser = subparsers.add_parser("single", help="单次模拟模式")
     single_parser.add_argument("--seed", type=int, default=None, help="随机种子")
     single_parser.add_argument("--fixed-order", action="store_true", help="使用固定初始堆叠顺序")
 
-    multi_parser = subparsers.add_parser("multi", help="多次拟合模式")
+    multi_parser = subparsers.add_parser("multi", help="多次模拟模式")
     multi_parser.add_argument("-n", "--num-simulations", type=int, default=1000, help="模拟次数")
     multi_parser.add_argument("--seed", type=int, default=None, help="随机种子")
 

@@ -31,6 +31,7 @@ class StackManager:
                 self.stacks[cell].remove(dango_id)
                 if not self.stacks[cell]:
                     del self.stacks[cell]
+        self.dango_positions.pop(dango_id, None)
 
     def add_to_stack_top(self, dango_id: str, cell: int) -> None:
         if cell not in self.stacks:

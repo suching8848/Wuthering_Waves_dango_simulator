@@ -13,7 +13,7 @@ class GameLogger:
         if not self.verbose:
             return
         print("=" * 60)
-        print("团子竞速模拟器 - 单次拟合模式")
+        print("团子竞速模拟器 - 单次模拟模式")
         print("=" * 60)
         print(f"地图长度: {game_state.board.length}")
         print(f"推进装置: {sorted(game_state.board.boost_cells)}")
@@ -122,7 +122,9 @@ class GameLogger:
             print(f"  {rank['rank']}. {rank['name']} (进度: {rank['progress']}, 格子: {rank['cell']}){marker}")
 
         print(f"\n最终堆叠:")
-        for cell, stack in sorted(result.get("final_stacks", {}).items()):
+        final_stacks = result.get("final_stacks", {})
+        for cell in sorted(final_stacks):
+            stack = final_stacks[cell]
             stack_names = []
             for d_id in stack:
                 d = game_state.get_dango(d_id)
@@ -135,7 +137,7 @@ class StatsLogger:
 
     def log_stats(self, results: dict) -> None:
         print("\n" + "=" * 60)
-        print("多次拟合模式统计结果")
+        print("多次模拟模式统计结果")
         print("=" * 60)
 
         print(f"\n模拟次数: {results['num_simulations']}")
