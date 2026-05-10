@@ -1,6 +1,6 @@
 # 团子竞速模拟器
 
-当前版本：v2.21
+当前版本：v2.32
 
 基于《鸣潮》团子活动规则的回合制竞速模拟器，支持单次过程回放和多次统计分析。
 
@@ -59,9 +59,11 @@
 
 ### 布大王 (Boss) — 噩梦之主
 
-> 第 3 回合起在终点（cell 0）出场，参与每回合的随机投骰与随机顺序。
-> 骰子 1-6，不参与最终排名，但会显示每回合状态。
-> 布大王沿终点往起点方向移动，且会像普通团子一样带着上方团子一起走。
+> 第 3 回合起在终点（cell 0）出场，参与每回合随机投骰与行动顺序。
+> 行动前不参与团子堆叠排序，但一定处于堆叠底部。
+> 骰子 1-6，赛道内所有装置机制均对其生效。
+> 沿终点往起点方向移动，会带着上方团子一起移动。
+> 每回合结束后，若布大王已与**全部 6 名**普通团子相遇过，则**传送回终点**（cell 0）并重置相遇记录，开始新一轮巡回。
 
 ***
 
@@ -78,68 +80,124 @@ cd Wuthering_Waves_dango_simulator
 
 ### 单次模拟 — 查看一局完整过程
 
-```bash
-python main.py single
-python main.py single --seed 42              # 固定种子，可复现
-python main.py single --seed 42 --fixed-order # 固定初始堆叠顺序
-```
+模拟一局完整的上半场比赛，输出每回合的投骰结果、技能触发、移动过程、装置触发、排名变化及最终结果。
 
-输出每回合的投骰结果、技能触发提示（`[技能]` 前缀）、西格莉卡标记、移动过程、装置触发、当前排名，以及最终结果。
+```bash
+python main.py single                           # 随机种子
+python main.py single --seed 42                 # 固定种子，可复现
+python main.py single --seed 42 --fixed-order   # 固定初始堆叠顺序
+```
 
 ### 多次模拟 — 统计胜率
 
+运行大量上半场对局，统计各团子获胜次数、胜率、平均/最小/最大回合数。
+
 ```bash
-python main.py multi              # 默认 1000 次
-python main.py multi -n 10000     # 自定义次数
-python main.py multi -n 100 --seed 42  # 固定种子，可复现
+python main.py multi                    # 默认 1000 次
+python main.py multi -n 10000           # 自定义次数
+python main.py multi -n 100 --seed 42   # 固定种子，可复现
 ```
 
-输出各团子获胜次数、胜率、平均/最小/最大回合数。
+### 下半场预测 — 从上半场局势预测下半场胜者 [测试版]
 
-| 参数                      | 说明                                       |
-| ----------------------- | ---------------------------------------- |
-| `--seed`                | 固定随机种子（单次/多次通用）                          |
-| `--fixed-order`         | 固定初始堆叠顺序（仅单次）                            |
-| `-n, --num-simulations` | 模拟次数，默认 1000（仅多次）
+上半场结束后，根据当前各团子位置和堆叠状态，模拟下半场比赛，预测第二个冲线的团子。
+
+**规则差异：**
+- 下半场**继承**上半场回合数（如上场结束于第 8 回合，下半场从第 9 回合开始）
+- 胜者判定为率先完成**第二圈**（progress ≥ 64），未跑完第一圈的团子继续跑完后再冲第二圈
+- 上半场胜者正常参与下半场竞速，所有技能和装置机制保持一致
+```bash
+python main.py predict -s state.json                  # 单次预测
+python main.py predict -s state.json --seed 42        # 固定种子
+python main.py predict -s state.json -n 100           # 多次预测统计
+python main.py predict -s state.json -n 100 --seed 42 # 固定种子多次预测
+```
+
+**JSON 状态文件格式：**
+
+```json
+{
+  "round": 8,
+  "dangos": {
+    "daniya":    {"cell": 0,  "progress": 32},
+    "phoebe":    {"cell": 31, "progress": 31},
+    "siglica":   {"cell": 31, "progress": 31},
+    "feixue":    {"cell": 30, "progress": 30, "state": {"metBoss": true}},
+    "luhesi":    {"cell": 30, "progress": 30},
+    "katixiya":  {"cell": 29, "progress": 29, "state": {"skill_activated": true}}
+  },
+  "stacks": {
+    "0":  ["budaiwang", "daniya"],
+    "31": ["siglica", "phoebe"],
+    "30": ["luhesi", "feixue"]
+  },
+  "boss": {
+    "cell": 0,
+    "progress": 24,
+    "spawned": true
+  },
+  "seed": 42
+}
+```
+
+| 字段 | 说明 |
+|------|------|
+| `round` | 上半场结束时的回合数（必填），下半场从此回合+1 开始 |
+| `dangos` | 各团子的 cell、progress（必填），可选 `state` 继承上半场技能状态 |
+| `stacks` | 同格团子的堆叠顺序（底→顶），含 Boss 的堆叠需显式列出 Boss 在底部 |
+| `boss` | Boss 状态：`cell`、`progress`、`spawned` |
+| `seed` | 可选随机种子，命令行 `--seed` 参数优先级更高 |
+
+### 参数一览
+
+| 参数 | 适用模式 | 说明 |
+|------|----------|------|
+| `-s, --state` | predict | 上半场结束状态的 JSON 文件路径（必填） |
+| `--seed` | 全部 | 固定随机种子 |
+| `--fixed-order` | single | 固定初始堆叠顺序 |
+| `-n, --num-simulations` | multi | 模拟次数，默认 1000 |
+| `-n, --multi` | predict | 多次预测次数 |
+| `-v, --verbose` | predict | 显示详细回合日志（默认开启） |
 
 ***
 
 ## 快速示例
 
 ```bash
-# 看一局完整过程
+# 看一局完整的上半场过程
 python main.py single --seed 42 --fixed-order
 
-# 跑 10000 局统计胜率
+# 跑 10000 局统计上半场胜率
 python main.py multi -n 10000 --seed 42
-```
 
-输出示例：
+# 从上半场结束局势预测下半场胜者
+python main.py predict -s test_state.json --seed 42
 
-```
-============================================================
-多次模拟模式统计结果
-============================================================
-
-模拟次数: 100000
-总耗时: 68.27 秒
-平均回合数: 8.26
-最小回合数: 4
-最大回合数: 12
-
-获胜统计:
-  daniya: 21414 次 (21.41%)
-  feixue: 20452 次 (20.45%)
-  katixiya: 18167 次 (18.17%)
-  phoebe: 15967 次 (15.97%)
-  luhesi: 14176 次 (14.18%)
-  siglica: 9824 次 (9.82%)
-
+# 跑 100 局统计下半场胜率
+python main.py predict -s test_state.json -n 100 --seed 42
 ```
 
 ***
 
 ## 更新内容
+
+### v2.32
+
+- 新增: 下半场技能状态继承 — JSON 中每个团子可通过 `state` 字段指定上半场结束时的技能状态（如绯雪的 `metBoss`、卡提希娅的 `skill_activated`），下半场直接沿用，无需重新触发激活条件。
+
+### v2.31 [测试版]
+
+- 修正: 布大王传送机制 — 从"与最后一名不在同格即传送"改为"与全部 6 名团子相遇后才传送回终点，同时重置相遇记录"。Boss 需要在赛道上逐轮移动并与各团子相遇，集齐 6 次相遇后才触发传送，更贴合实际游戏行为。
+
+### v2.3
+
+- 新增: 下半场预测功能（测试版），支持从上半场结束局势模拟下半场。通过 JSON 文件输入各团子位置、进度、堆叠关系及 Boss 状态，使用 `python main.py predict -s state.json` 运行。
+  - 下半场**继承**上半场回合数，不重新计数。
+  - 下半场胜者条件为跑完**第二圈**（progress ≥ 64），未完成第一圈的团子继续跑完第一圈后冲刺第二圈，上半场胜者正常参与下半场竞速。
+  - 新增多次预测模式 `python main.py predict -s state.json -n 100`，统计下半场各团子胜率。
+- 新增: 布大王传送机制 — 每回合结束后，若与最后一名团子不在同一格，则传送回终点（cell 0）。
+- 新增: 布大王详细机制描述（不参与堆叠排序、装置对其生效、始终处于堆叠底部）。
+- 修复: Pylance 严格模式下 `list[str] = None` 类型标注报错，统一改为 `list[str] | None`。
 
 ### v2.21
 

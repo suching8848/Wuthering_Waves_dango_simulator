@@ -91,11 +91,11 @@ class StackManager:
         for d_id in moving_dangos:
             self.dango_positions.pop(d_id, None)
 
-        for d_id in reversed(moving_dangos):
+        for d_id in moving_dangos:
             self.add_to_stack_top(d_id, new_cell)
             moved_group.append(d_id)
 
-        return list(reversed(moved_group))
+        return moved_group
 
     def shuffle_cell(self, cell: int, rng: random.Random, boss_id: str = "budaiwang") -> None:
         if cell not in self.stacks or not self.stacks[cell]:

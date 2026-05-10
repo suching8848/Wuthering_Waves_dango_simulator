@@ -1,0 +1,22 @@
+{
+  "round": 8,
+  "dangos": {
+    "daniya":    {"cell": 0,  "progress": 32},
+    "phoebe":    {"cell": 31, "progress": 31},
+    "siglica":   {"cell": 31, "progress": 31},
+    "feixue":    {"cell": 30, "progress": 30, "state": {"metBoss": true}},
+    "luhesi":    {"cell": 30, "progress": 30},
+    "katixiya":  {"cell": 29, "progress": 29, "state": {"skill_activated": true}}
+  },
+  "stacks": {
+    "0":  ["budaiwang", "daniya"],
+    "31": ["siglica", "phoebe"],
+    "30": ["luhesi", "feixue"]
+  },
+  "boss": {
+    "cell": 0,
+    "progress": 24,
+    "spawned": true
+  },
+  "seed": 42
+}

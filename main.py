@@ -1,6 +1,7 @@
 """Main entry point for Dango Racing Simulator."""
 
 import argparse
+import json
 import sys
 from config import DANGOS_CONFIG, SKILL_CONFIG, SIMULATION_CONFIG
 from core.simulator import Simulator
@@ -54,6 +55,40 @@ def run_multi_mode(args, config: dict) -> None:
     simulator.stats_logger.log_stats(results)
 
 
+def run_predict_mode(args, config: dict) -> None:
+    with open(args.state, "r", encoding="utf-8") as f:
+        snapshot = json.load(f)
+
+    if args.seed is not None:
+        snapshot["seed"] = args.seed
+
+    config["verbose"] = args.verbose
+    simulator = Simulator(config)
+
+    if args.multi and args.multi > 1:
+        print("运行多次下半场预测模式 (测试版)...")
+        print(f"预测次数: {args.multi}")
+        print(f"随机种子: {snapshot.get('seed', '无 (随机)')}")
+        print(f"起始回合: 第 {snapshot.get('round', 0)} 回合\n")
+
+        results = simulator.run_prediction_multi(snapshot, args.multi)
+
+        print("\n" + "=" * 60)
+        print("下半场预测统计结果 (测试版)")
+        print("=" * 60)
+        simulator.stats_logger.log_stats(results)
+    else:
+        print("运行下半场预测模式 (测试版)...")
+        print(f"随机种子: {snapshot.get('seed', '无 (随机)')}")
+
+        result = simulator.run_prediction(snapshot, verbose=args.verbose)
+
+        print("\n" + "=" * 60)
+        print("下半场预测完成 (测试版)")
+        print(f"预测获胜者: {result['winner_name']}")
+        print(f"获胜回合: 第 {result['winner_found_round']} 回合")
+
+
 def main():
     parser = argparse.ArgumentParser(description="团子竞速模拟器")
 
@@ -67,6 +102,12 @@ def main():
     multi_parser.add_argument("-n", "--num-simulations", type=int, default=1000, help="模拟次数")
     multi_parser.add_argument("--seed", type=int, default=None, help="随机种子")
 
+    predict_parser = subparsers.add_parser("predict", help="下半场预测模式（测试版）")
+    predict_parser.add_argument("-s", "--state", type=str, required=True, help="上半场结束状态的JSON文件路径")
+    predict_parser.add_argument("--seed", type=int, default=None, help="随机种子（覆盖JSON中的种子）")
+    predict_parser.add_argument("-n", "--multi", type=int, default=0, help="多次预测次数（默认1次）")
+    predict_parser.add_argument("-v", "--verbose", action="store_true", default=True, help="显示详细回合日志")
+
     args = parser.parse_args()
 
     if args.mode is None:
@@ -79,6 +120,8 @@ def main():
         run_single_mode(args, config)
     elif args.mode == "multi":
         run_multi_mode(args, config)
+    elif args.mode == "predict":
+        run_predict_mode(args, config)
 
 
 if __name__ == "__main__":

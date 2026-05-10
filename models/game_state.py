@@ -22,6 +22,9 @@ class GameState:
     boss_start_round: int = 3
     initial_stack_order: list[str] = field(default_factory=list)
     boss_spawned: bool = False
+    first_half_winner: Optional[str] = None
+    is_second_half: bool = False
+    boss_met_dangos: set = field(default_factory=set)
 
     def get_dango(self, dango_id: str) -> Optional[Dango]:
         return self.dangos.get(dango_id)
