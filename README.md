@@ -1,12 +1,12 @@
 # 团子竞速模拟器
 
-当前版本：v2.32
+当前版本：v2.51
 
-基于《鸣潮》团子活动规则的回合制竞速模拟器，支持单次过程回放和多次统计分析。
+基于《鸣潮》团子活动规则的回合制竞速模拟器，支持上半场/下半场两种模式，多个团子组别，单次过程回放和多次统计分析。
 
 ## 游戏规则
 
-6 个普通团子 + 1 个 Boss 团子在 32 格环形赛道上竞速，最先跑完一圈（进度 ≥ 32）的团子获胜。
+6 个普通团子 + 1 个 Boss 团子在 32 格环形赛道上竞速，上半场最先跑完一圈（进度 ≥ 32）、下半场最先跑完两圈（进度 ≥ 64）的团子获胜。
 
 ### 基础规则
 
@@ -29,33 +29,61 @@
 
 ## 团子技能
 
-### 达妮娅 — 连掷激励
+### A 组
+
+#### 达妮娅 — 连掷激励
 
 > 投骰子时，若投出和上一次相同的点数，则额外前进 **2 格**。
 > 第一回合无上次点数，不触发。
 
-### 菲比 — 幸运掷骰
+#### 菲比 — 幸运掷骰
 
 > **50%** 概率额外前进 **1 格**。
 
-### 西格莉卡 — 标记指令
+#### 西格莉卡 — 标记指令
 
 > 每回合投骰后，标记排名紧邻自身且更高的至多 **2 个**团子。
 > 被标记者本回合移动 **-1 格**（最低 1 格）。
 
-### 绯雪 — 追击之魂
+#### 绯雪 — 追击之魂
 
 > 与布大王相遇后，**永久**获得每次移动额外 **+1 格**。
 
-### 陆·赫斯 — 装置精通
+#### 陆·赫斯 — 装置精通
 
 > 触发推进装置时总共 **+4 格**（默认 1 + 额外 3）。
 > 触发阻遏装置时总共 **-2 格**（默认 1 + 额外 1）。
 
-### 卡提希娅 — 绝境逆袭
+#### 卡提希娅 — 绝境逆袭
 
 > 每场比赛最多触发 **1 次**。
 > 自身移动结束后若处于最后一名，剩余回合 **60%** 概率额外前进 **2 格**。
+
+### B 组
+
+#### 千咲 — 最小激励
+
+> 投骰子时，若投出的结果为本轮所有点数**最小之一**，则额外前进 **2 格**。
+
+#### 莫宁 — 循环骰子
+
+> 投骰子时，点数将固定在 **3 → 2 → 1** 循环出现（忽略随机投骰结果）。
+
+#### 琳奈 — 波动步伐
+
+> 每回合中，有 **60%** 概率按照双倍点数移动，但有 **20%** 概率当回合**无法移动**。
+
+#### 爱弥斯 — 中点传送
+
+> 每场比赛**一次**，当该团子经过赛程中点（progress 16）后，若前方存在其他非布大王的团子，则会传送到**最近**团子顶端。
+
+#### 守岸人 — 稳定投掷
+
+> 骰子只会掷出 **2 或 3**。
+
+#### 珂莱塔 — 双倍冲刺
+
+> **28%** 概率以骰子的双倍点数前进。
 
 ### 布大王 (Boss) — 噩梦之主
 
@@ -78,39 +106,44 @@ cd Wuthering_Waves_dango_simulator
 
 ## 使用
 
-### 单次模拟 — 查看一局完整过程
+### 上半场单次模拟
 
 模拟一局完整的上半场比赛，输出每回合的投骰结果、技能触发、移动过程、装置触发、排名变化及最终结果。
 
 ```bash
-python main.py single                           # 随机种子
-python main.py single --seed 42                 # 固定种子，可复现
-python main.py single --seed 42 --fixed-order   # 固定初始堆叠顺序
+python main.py single                           # A组，随机种子
+python main.py single --seed 42                 # A组，固定种子
+python main.py single --seed 42 --fixed-order   # A组，固定初始堆叠
+python main.py single --group B                 # B组
+python main.py single --group B --seed 42       # B组，固定种子
 ```
 
-### 多次模拟 — 统计胜率
+### 上半场多次模拟 — 统计胜率
 
 运行大量上半场对局，统计各团子获胜次数、胜率、平均/最小/最大回合数。
 
 ```bash
-python main.py multi                    # 默认 1000 次
-python main.py multi -n 10000           # 自定义次数
-python main.py multi -n 100 --seed 42   # 固定种子，可复现
+python main.py multi                     # A组，默认 1000 次
+python main.py multi -n 10000            # A组，自定义次数
+python main.py multi --group B           # B组
+python main.py multi --group B -n 100 --seed 42
 ```
 
-### 下半场预测 — 从上半场局势预测下半场胜者 [测试版]
+### 下半场模拟 — 从上半场局势预测下半场胜者
 
-上半场结束后，根据当前各团子位置和堆叠状态，模拟下半场比赛，预测第二个冲线的团子。
+上半场结束后，根据快照文件模拟下半场比赛。**同组续跑**时继承上半场位置和技能状态；**异组新跑**时从 cell 0 全新起跑。布大王在下半场第 3 回合重新入场。
 
-**规则差异：**
-- 下半场**继承**上半场回合数（如上场结束于第 8 回合，下半场从第 9 回合开始）
-- 胜者判定为率先完成**第二圈**（progress ≥ 64），未跑完第一圈的团子继续跑完后再冲第二圈
-- 上半场胜者正常参与下半场竞速，所有技能和装置机制保持一致
 ```bash
-python main.py predict -s state.json                  # 单次预测
-python main.py predict -s state.json --seed 42        # 固定种子
-python main.py predict -s state.json -n 100           # 多次预测统计
-python main.py predict -s state.json -n 100 --seed 42 # 固定种子多次预测
+python main.py second -s state.json                  # B组全新起跑（默认）
+python main.py second -s state.json --seed 42        # 固定种子
+python main.py second -s state.json --group A        # A组续跑（继承位置/技能）
+python main.py second -s state.json --group B -n 100 # 多次预测统计
+```
+
+`predict` 是 `second` 的别名，向后兼容：
+
+```bash
+python main.py predict -s state.json --seed 42
 ```
 
 **JSON 状态文件格式：**
@@ -152,34 +185,52 @@ python main.py predict -s state.json -n 100 --seed 42 # 固定种子多次预测
 
 | 参数 | 适用模式 | 说明 |
 |------|----------|------|
-| `-s, --state` | predict | 上半场结束状态的 JSON 文件路径（必填） |
+| `--group` | 全部 | 选择团子组别 A/B（上半场默认 A，下半场默认 B） |
 | `--seed` | 全部 | 固定随机种子 |
 | `--fixed-order` | single | 固定初始堆叠顺序 |
+| `-s, --state` | second/predict | 上半场结束状态的 JSON 文件路径（必填） |
 | `-n, --num-simulations` | multi | 模拟次数，默认 1000 |
-| `-n, --multi` | predict | 多次预测次数 |
-| `-v, --verbose` | predict | 显示详细回合日志（默认开启） |
+| `-n, --multi` | second/predict | 多次预测次数 |
+| `-v, --verbose` | second/predict | 显示详细回合日志（默认开启） |
 
 ***
 
 ## 快速示例
 
 ```bash
-# 看一局完整的上半场过程
+# 上半场 A 组单次模拟
 python main.py single --seed 42 --fixed-order
 
-# 跑 10000 局统计上半场胜率
-python main.py multi -n 10000 --seed 42
+# 上半场 B 组多次统计
+python main.py multi --group B -n 100 --seed 42
 
-# 从上半场结束局势预测下半场胜者
-python main.py predict -s test_state.json --seed 42
+# 下半场 A 组续跑（同组继承位置）
+python main.py second -s test_state_early.json --group A --seed 42
 
-# 跑 100 局统计下半场胜率
-python main.py predict -s test_state.json -n 100 --seed 42
+# 下半场 B 组全新起跑
+python main.py second -s test_state_early.json --group B --seed 42
+
+# 下半场 B 组多次预测
+python main.py second -s test_state_early.json --group B -n 100 --seed 42
 ```
 
 ***
 
 ## 更新内容
+
+### v2.51
+
+- 修复: 爱弥斯「中点传送」传送到较高圈数团子时 progress 可能倒退的问题（`move_to_cell` 跨圈数修正）。
+- 验证: 全部 13 个团子技能逐项检查，确认正确生效。
+
+### v2.5
+
+- 重构: 上半场/下半场两种模式分离，`single`/`multi` 为上半场，新增 `second` 为下半场（`predict` 保留为别名）。
+- 新增: 所有模式均支持 `--group A|B` 参数，任意组别可用于任意模式。
+- 新增: 下半场同组续跑 — 使用 `--group A` 时从快照恢复 A 组团子的位置、堆叠和技能状态。
+- 新增: B 组六个团子及技能（千咲、莫宁、琳奈、爱弥斯、守岸人、珂莱塔）。
+- 修复: 布大王在下半场第 3 回合重新入场（而非立即出场）。
+- 重构: 模块化团子组系统，`config/default_config.py` 中按注释指引即可添加新组。
 
 ### v2.32
 
@@ -195,7 +246,7 @@ python main.py predict -s test_state.json -n 100 --seed 42
   - 下半场**继承**上半场回合数，不重新计数。
   - 下半场胜者条件为跑完**第二圈**（progress ≥ 64），未完成第一圈的团子继续跑完第一圈后冲刺第二圈，上半场胜者正常参与下半场竞速。
   - 新增多次预测模式 `python main.py predict -s state.json -n 100`，统计下半场各团子胜率。
-- 新增: 布大王传送机制 — 每回合结束后，若与最后一名团子不在同一格，则传送回终点（cell 0）。
+- 新增: 布大王传送机制 — 与全部 6 名团子相遇后传送回终点（cell 0）并重置相遇记录。
 - 新增: 布大王详细机制描述（不参与堆叠排序、装置对其生效、始终处于堆叠底部）。
 - 修复: Pylance 严格模式下 `list[str] = None` 类型标注报错，统一改为 `list[str] | None`。
 
@@ -216,7 +267,7 @@ python main.py predict -s test_state.json -n 100 --seed 42
 - 修复卡提希娅「绝境逆袭」激活判定 Bug：`_is_last_place` 比较符号从 `>` 修正为 `<`，现在正确地在最后一名时激活而非第一名。
 - 布大王默认携带上方堆叠团子移动 (`boss_carries_upper_stack = True`)。
 - 修正 `advance_backward` 实现：Boss 逆向进度保持正向递增，cell 通过 `(-progress) % length` 计算，避免 progress 出现负值。
-- 单次模拟新增技能触发提示：每个团子行动时如技能生效，会输出 `[技能]` 前缀的提示语（涵盖达妮娅、菲比、绯雪、陆·赫斯、卡提希娅全部 6 个技能）。
+- 单次模拟新增技能触发提示：每个团子行动时如技能生效，会输出 `[技能]` 前缀的提示语。
 
 ### v2.0
 
@@ -228,51 +279,54 @@ python main.py predict -s test_state.json -n 100 --seed 42
 
 - 修正西格莉卡技能时机：改为在投骰阶段、她自己投完骰子后立刻结算并锁定本回合减速目标。
 - 修正西格莉卡标记不会在移动阶段前再次重算，保证当前回合名次变化不会影响已发动的技能效果。
-- 同步更新 v1.6 规则说明。
 
 ### v1.5
 
 - 修正布大王反向移动时的堆叠携带与装置位移逻辑，被带走的普通团子会被正确往回拖动。
 - 修正绯雪技能判定：只要绯雪位置大于等于布大王位置，即视为已经相遇，并永久获得每次移动额外 +1 步。
-- 更新 v1.5 规则说明与统计输出示例。
 
 ### v1.4
 
 - 修正布大王出场与展示逻辑：第 3 回合才在终点出场，并在每回合日志中显示状态。
 - 修正布大王行动参与：从第 3 回合开始加入随机投骰与随机顺序，但不计入最终排名。
-- 补充布大王堆叠携带说明：布大王与普通团子一样会带着上方团子一起移动。
-- 重新整理输出示例与规则文案。
 
 ### v1.3
 
 - 修正布大王出场逻辑：不再开局就占据起点，而是在第 3 回合正式从终点出场。
-- 修正布大王反向移动建模：其位置按“从终点往起点逆向巡场”计算，并与普通团子方向相反。
-- 重新校正 README 规则描述与统计示例输出，修复绯雪胜率示例失真的问题。
+- 修正布大王反向移动建模：其位置按"从终点往起点逆向巡场"计算，并与普通团子方向相反。
 
 ### v1.2
 
 - 修复堆叠移除后位置索引未清理的问题，避免 Boss 等角色在日志中出现错误原位置。
 - 修复最终堆叠输出包含空格子的显示问题，使结束态展示与实际堆叠一致。
-- 统一命令行与日志中的“模拟模式”文案。
 
 ## 配置
 
-所有可调参数集中在 `config/default_config.py`：
+所有可调参数集中在 `config/default_config.py`，按注释指引即可添加新组：
 
 ```python
-BOARD_LENGTH = 32                     # 赛道长度
-BOOST_CELLS = {3, 11, 16, 23}        # 推进装置格子
-TRAP_CELLS  = {10, 28}               # 阻遏装置格子
-RIFT_CELLS  = {6, 20}                # 时空裂隙格子
+# 团子组定义 — 添加新组只需在 DANGO_GROUPS 中添加并配置对应团子
+DANGO_GROUPS = {
+    "A": DANGO_IDS_A,
+    "B": DANGO_IDS_B,
+}
 
-# 各技能参数
+# 技能参数
 SKILL_CONFIG = {
-    "daniya":   {"extra_steps_on_same_dice": 2},            # 同点 +2
-    "phoebe":   {"extra_step_probability": 0.5},            # 50% +1
-    "siglica":  {"mark_count": 2, "mark_penalty": 1},       # 标记 2 人 -1
-    "feixue":   {"extra_steps_after_meeting_boss": 1},      # 遇 Boss 后 +1
-    "luhesi":   {"boost_extra_steps": 3, "trap_extra_steps": 1},  # 装置 +4/-2
-    "katixiya": {"activation_probability": 0.6, "extra_steps": 2}, # 60% +2
+    # A 组
+    "daniya":   {"extra_steps_on_same_dice": 2},
+    "phoebe":   {"extra_step_probability": 0.5},
+    "siglica":  {"mark_count": 2, "mark_penalty": 1},
+    "feixue":   {"extra_steps_after_meeting_boss": 1},
+    "luhesi":   {"boost_extra_steps": 3, "trap_extra_steps": 1},
+    "katixiya": {"activation_probability": 0.6, "extra_steps": 2},
+    # B 组
+    "qianxiao":  {"extra_steps_on_min_dice": 2},
+    "moning":    {"dice_cycle": [3, 2, 1]},
+    "linnai":    {"double_probability": 0.6, "skip_probability": 0.2},
+    "aimisi":    {"midpoint": 16},
+    "shouanren": {},
+    "kelaite":   {"double_probability": 0.28},
 }
 ```
 
@@ -283,24 +337,30 @@ SKILL_CONFIG = {
 ```
 ├── main.py                  # CLI 入口
 ├── config/
-│   └── default_config.py    # 默认配置
+│   └── default_config.py    # 默认配置（团子、技能、装置、组别）
 ├── core/
 │   ├── game_engine.py       # 游戏引擎
-│   ├── simulator.py         # 模拟器（单次/多次）
+│   ├── simulator.py         # 模拟器（单次/多次/下半场）
 │   └── stack_manager.py     # 堆叠管理
 ├── models/
 │   ├── dango.py             # 团子数据模型
 │   ├── board.py             # 赛道模型
 │   └── game_state.py        # 对局状态
 ├── skills/
-│   ├── base_skill.py        # 技能基类
-│   ├── daniya_skill.py      # 达妮娅
-│   ├── phoebe_skill.py      # 菲比
-│   ├── siglica_skill.py     # 西格莉卡
-│   ├── feixue_skill.py      # 绯雪
-│   ├── lu_hesi_skill.py     # 陆·赫斯
-│   ├── katixiya_skill.py    # 卡提希娅
-│   └── boss_skill.py        # 布大王
+│   ├── base_skill.py        # 技能基类（10 个生命周期钩子）
+│   ├── daniya_skill.py      # A组: 达妮娅
+│   ├── phoebe_skill.py      # A组: 菲比
+│   ├── siglica_skill.py     # A组: 西格莉卡
+│   ├── feixue_skill.py      # A组: 绯雪
+│   ├── lu_hesi_skill.py     # A组: 陆·赫斯
+│   ├── katixiya_skill.py    # A组: 卡提希娅
+│   ├── qianxiao_skill.py    # B组: 千咲
+│   ├── moning_skill.py      # B组: 莫宁
+│   ├── linnai_skill.py      # B组: 琳奈
+│   ├── aimisi_skill.py      # B组: 爱弥斯
+│   ├── shouanren_skill.py   # B组: 守岸人
+│   ├── kelaite_skill.py     # B组: 珂莱塔
+│   └── boss_skill.py        # Boss: 布大王
 └── utils/
     └── logger.py            # 日志输出
 ```

@@ -106,11 +106,11 @@ class Simulator:
 
         return results
 
-    def run_prediction(self, snapshot: dict, verbose: bool = True) -> dict:
+    def run_prediction(self, snapshot: dict, verbose: bool = True, dango_group: str = "B") -> dict:
         seed = snapshot.get("seed", self.random_seed)
         rng = random.Random(seed)
 
-        game_state = self.engine.create_game_state_from_snapshot(snapshot, rng)
+        game_state = self.engine.create_game_state_from_snapshot(snapshot, rng, dango_group)
 
         if verbose:
             self.game_logger.log_game_start(game_state)
@@ -148,7 +148,7 @@ class Simulator:
 
         return result
 
-    def run_prediction_multi(self, snapshot: dict, num_simulations: int) -> dict:
+    def run_prediction_multi(self, snapshot: dict, num_simulations: int, dango_group: str = "B") -> dict:
         start_time = time.time()
 
         wins = {}
@@ -164,7 +164,7 @@ class Simulator:
 
             sim_rng = random.Random(base_seed + i)
 
-            game_state = self.engine.create_game_state_from_snapshot(snapshot, sim_rng)
+            game_state = self.engine.create_game_state_from_snapshot(snapshot, sim_rng, dango_group)
 
             while game_state.winner is None and game_state.round_no < 1000:
                 self.engine.run_round(game_state)

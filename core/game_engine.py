@@ -24,8 +24,12 @@ class GameEngine:
         self.boss_carries_upper_stack = self.config.get("boss_carries_upper_stack", False)
         self.boss_start_round = self.config.get("boss_start_round", 3)
         self.dango_configs = self.config.get("dangos", {})
+        self.dango_group = self.config.get("dango_group", "A")
 
-    def create_game_state(self, rng: random.Random, initial_order: list[str] = None) -> GameState:
+    def create_game_state(self, rng: random.Random, initial_order: list[str] = None, dango_group: str = None) -> GameState:
+        if dango_group is None:
+            dango_group = self.dango_group
+
         game_state = GameState()
         game_state.board = self.board
         game_state.round_no = 0
@@ -36,30 +40,60 @@ class GameEngine:
         game_state.winner = None
         game_state.logs = []
         game_state.boss_spawned = False
+        game_state.dango_group = dango_group
 
-        self._initialize_dangos(game_state)
+        self._initialize_dangos(game_state, dango_group)
         self._initialize_stack(game_state, rng, initial_order)
         self._initialize_skills(game_state)
         self._initialize_boss(game_state)
 
         return game_state
 
-    def create_game_state_from_snapshot(self, snapshot: dict, rng: random.Random) -> GameState:
+    def create_game_state_from_snapshot(self, snapshot: dict, rng: random.Random, dango_group: str = "B") -> GameState:
         game_state = GameState()
         game_state.board = self.board
         game_state.round_no = snapshot.get("round", 0)
-        game_state.boss_start_round = self.boss_start_round
         game_state.stack_manager = StackManager(self.board.length)
         game_state.rng = rng
         game_state.marked_by_siglica = set()
         game_state.winner = None
         game_state.logs = []
-        game_state.boss_spawned = snapshot.get("boss", {}).get("spawned", False)
         game_state.first_half_winner = snapshot.get("first_half_winner")
         game_state.is_second_half = True
+        game_state.dango_group = dango_group
 
-        self._initialize_dangos(game_state)
+        snapshot_round = snapshot.get("round", 0)
+        game_state.boss_start_round = snapshot_round + 3
+        game_state.boss_spawned = False
 
+        self._initialize_dangos(game_state, dango_group)
+
+        snapshot_dango_ids = set(snapshot.get("dangos", {}).keys())
+        current_group_ids = set(d.id for d in game_state.get_normal_dangos())
+        same_group = bool(snapshot_dango_ids & current_group_ids)
+
+        if same_group:
+            self._restore_from_snapshot(game_state, snapshot)
+        else:
+            group_ids = [d.id for d in game_state.get_normal_dangos()]
+            rng.shuffle(group_ids)
+            game_state.initial_stack_order = list(group_ids)
+            game_state.stack_manager.initialize_stack(group_ids, cell=0)
+
+        self._initialize_skills(game_state)
+
+        if same_group:
+            dangos_snapshot = snapshot.get("dangos", {})
+            for dango_id, dango_data in dangos_snapshot.items():
+                preserved_state = dango_data.get("state", {})
+                if preserved_state:
+                    dango = game_state.get_dango(dango_id)
+                    if dango:
+                        dango.state.update(preserved_state)
+
+        return game_state
+
+    def _restore_from_snapshot(self, game_state: GameState, snapshot: dict) -> None:
         dangos_snapshot = snapshot.get("dangos", {})
         for dango_id, dango_data in dangos_snapshot.items():
             dango = game_state.get_dango(dango_id)
@@ -72,43 +106,30 @@ class GameEngine:
         placed_ids = set()
         for cell_str, dango_ids in stacks_snapshot.items():
             cell = int(cell_str)
-            for dango_id in dango_ids:
-                if dango_id in game_state.dangos:
-                    game_state.stack_manager.add_to_stack_top(dango_id, cell)
-                    placed_ids.add(dango_id)
+            for d_id in dango_ids:
+                if d_id in game_state.dangos:
+                    game_state.stack_manager.add_to_stack_top(d_id, cell)
+                    placed_ids.add(d_id)
 
         for dango_id, dango_data in dangos_snapshot.items():
             if dango_id not in placed_ids and dango_id in game_state.dangos:
                 game_state.stack_manager.add_to_stack_top(dango_id, dango_data["cell"])
 
-        boss_snapshot = snapshot.get("boss", {})
-        boss = game_state.get_boss()
-        if boss and boss_snapshot:
-            boss.progress = boss_snapshot.get("progress", 0)
-            boss.cell = boss_snapshot.get("cell", 0)
-            if boss_snapshot.get("spawned", False):
-                game_state.boss_spawned = True
-                game_state.stack_manager.add_to_stack_bottom(boss.id, boss.cell)
-
-        self._initialize_skills(game_state)
-
-        for dango_id, dango_data in dangos_snapshot.items():
-            preserved_state = dango_data.get("state", {})
-            if preserved_state:
-                dango = game_state.get_dango(dango_id)
-                if dango:
-                    dango.state.update(preserved_state)
-
         game_state.initial_stack_order = list(dangos_snapshot.keys())
 
-        return game_state
+    def _initialize_dangos(self, game_state: GameState, dango_group: str = None) -> None:
+        if dango_group is None:
+            dango_group = self.dango_group
 
-    def _initialize_dangos(self, game_state: GameState) -> None:
         for dango_id, dango_config in self.dango_configs.items():
+            group = dango_config.get("group")
+            is_boss = dango_config.get("is_boss", False)
+            if group != dango_group and not is_boss:
+                continue
             dango = Dango(
                 id=dango_id,
                 name=dango_config.get("name", dango_id),
-                is_boss=dango_config.get("is_boss", False),
+                is_boss=is_boss,
                 dice_range=dango_config.get("dice_range", (1, 3)),
             )
             game_state.dangos[dango_id] = dango
@@ -167,6 +188,10 @@ class GameEngine:
 
     def _determine_action_order(self, game_state: GameState) -> None:
         if game_state.round_no == 1 and not game_state.is_second_half:
+            game_state.current_order = list(reversed(game_state.initial_stack_order))
+            return
+
+        if game_state.is_second_half and game_state.round_no == game_state.boss_start_round - 2:
             game_state.current_order = list(reversed(game_state.initial_stack_order))
             return
 
@@ -234,6 +259,9 @@ class GameEngine:
             penalty = 1
             base_steps = max(1, base_steps - penalty)
             move_log["marked_penalty"] = True
+
+        if dango.skill:
+            base_steps = dango.skill.modify_final_steps(game_state, base_steps)
 
         move_log["final_steps"] = base_steps
 

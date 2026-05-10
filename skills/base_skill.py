@@ -39,5 +39,8 @@ class BaseSkill(ABC):
     def on_round_end(self, game_state: Any) -> None:
         pass
 
+    def modify_final_steps(self, game_state: Any, base_steps: int) -> int:
+        return base_steps
+
     def on_game_end(self, game_state: Any, winner: Optional[str]) -> None:
         pass
