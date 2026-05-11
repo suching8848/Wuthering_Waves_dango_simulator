@@ -1,0 +1,21 @@
+{
+  "round": 8,
+  "dangos": {
+    "daniya":    {"cell": 0,  "progress": 32},
+    "phoebe":    {"cell": 12, "progress": 12},
+    "siglica":   {"cell": 20, "progress": 20},
+    "feixue":    {"cell": 15, "progress": 15},
+    "luhesi":    {"cell": 25, "progress": 25},
+    "katixiya":  {"cell": 8,  "progress": 8}
+  },
+  "stacks": {
+    "12": ["phoebe", "feixue"]
+  },
+  "first_half_winner": "daniya",
+  "boss": {
+    "cell": 0,
+    "progress": 0,
+    "spawned": false
+  },
+  "seed": 42
+}

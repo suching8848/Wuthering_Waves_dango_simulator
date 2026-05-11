@@ -21,12 +21,21 @@ class AimisiSkill(BaseSkill):
         if dango is None:
             return
 
-        if dango.state.get("teleport_used", False):
+        midpoint = self.config.get("midpoint", 16)
+        bl = game_state.board.length
+
+        pre_progress = dango.state.get("_pre_move_progress", 0)
+        pre_lap_progress = pre_progress % bl
+        cur_lap_progress = dango.progress % bl
+
+        if pre_lap_progress >= midpoint or cur_lap_progress < midpoint:
             return
 
-        midpoint = self.config.get("midpoint", 16)
-        pre_progress = dango.state.get("_pre_move_progress", 0)
-        if pre_progress >= midpoint or dango.progress < midpoint:
+        current_lap = dango.progress // bl
+        used_laps = dango.state.get("teleport_used_laps", [])
+        if dango.state.get("teleport_used") and 0 not in used_laps:
+            used_laps.append(0)
+        if current_lap in used_laps:
             return
 
         normal_dangos = game_state.get_normal_dangos()
@@ -42,13 +51,13 @@ class AimisiSkill(BaseSkill):
         game_state.stack_manager.remove_from_stack(self.dango_id)
         game_state.stack_manager.add_to_stack_top(self.dango_id, target_cell)
 
-        bl = game_state.board.length
         new_progress = (dango.progress // bl) * bl + target_cell
         if new_progress < dango.progress:
             new_progress += bl
         dango.progress = new_progress
         dango.cell = target_cell
-        dango.state["teleport_used"] = True
+        used_laps.append(current_lap)
+        dango.state["teleport_used_laps"] = used_laps
 
         game_state.logs.append({
             "type": "skill_trigger",

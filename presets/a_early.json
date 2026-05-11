@@ -1,0 +1,17 @@
+{
+  "round": 2,
+  "dangos": {
+    "daniya":    {"cell": 5, "progress": 5},
+    "phoebe":    {"cell": 2, "progress": 2},
+    "siglica":   {"cell": 8, "progress": 8},
+    "feixue":    {"cell": 10, "progress": 10},
+    "luhesi":    {"cell": 15, "progress": 15},
+    "katixiya":  {"cell": 12, "progress": 12}
+  },
+  "boss": {
+    "cell": 0,
+    "progress": 0,
+    "spawned": false
+  },
+  "seed": 99
+}

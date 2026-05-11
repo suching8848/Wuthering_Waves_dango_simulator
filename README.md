@@ -1,6 +1,6 @@
 # 团子竞速模拟器
 
-当前版本：v2.51
+当前版本：v2.6
 
 基于《鸣潮》团子活动规则的回合制竞速模拟器，支持上半场/下半场两种模式，多个团子组别，单次过程回放和多次统计分析。
 
@@ -75,7 +75,8 @@
 
 #### 爱弥斯 — 中点传送
 
-> 每场比赛**一次**，当该团子经过赛程中点（progress 16）后，若前方存在其他非布大王的团子，则会传送到**最近**团子顶端。
+> 每圈**一次**，当该团子经过赛程中点（每圈 progress % 32 跨过 16）后，若前方存在其他非布大王的团子，则会传送到**最近**团子顶端。
+> 第一圈中点 progress 16，第二圈中点 progress 48，各自独立触发。
 
 #### 守岸人 — 稳定投掷
 
@@ -131,19 +132,16 @@ python main.py multi --group B -n 100 --seed 42
 
 ### 下半场模拟 — 从上半场局势预测下半场胜者
 
-上半场结束后，根据快照文件模拟下半场比赛。**同组续跑**时继承上半场位置和技能状态；**异组新跑**时从 cell 0 全新起跑。布大王在下半场第 3 回合重新入场。
+在上半场命令后加 `-s` 指定快照文件即可切换为下半场。**同组续跑**时继承上半场位置和技能状态；**异组新跑**时从 cell 0 全新起跑。布大王在下半场第 3 回合重新入场。
 
 ```bash
-python main.py second -s state.json                  # B组全新起跑（默认）
-python main.py second -s state.json --seed 42        # 固定种子
-python main.py second -s state.json --group A        # A组续跑（继承位置/技能）
-python main.py second -s state.json --group B -n 100 # 多次预测统计
-```
+# 下半场单次
+python main.py single -s presets/a_early.json --group A        # A组续跑（同组，继承位置/技能）
+python main.py single -s presets/a_early.json --group B        # B组新跑（异组，cell 0 起跑）
+python main.py single -s presets/b_finish.json --group B       # B组续跑（同组，B组预设）
 
-`predict` 是 `second` 的别名，向后兼容：
-
-```bash
-python main.py predict -s state.json --seed 42
+# 下半场多次
+python main.py multi -s presets/b_finish.json --group B -n 100 --seed 42  # 多次预测
 ```
 
 **JSON 状态文件格式：**
@@ -188,10 +186,8 @@ python main.py predict -s state.json --seed 42
 | `--group` | 全部 | 选择团子组别 A/B（上半场默认 A，下半场默认 B） |
 | `--seed` | 全部 | 固定随机种子 |
 | `--fixed-order` | single | 固定初始堆叠顺序 |
-| `-s, --state` | second/predict | 上半场结束状态的 JSON 文件路径（必填） |
+| `-s, --state` | single/multi | 上半场结束状态的 JSON 文件路径（指定后切换为下半场） |
 | `-n, --num-simulations` | multi | 模拟次数，默认 1000 |
-| `-n, --multi` | second/predict | 多次预测次数 |
-| `-v, --verbose` | second/predict | 显示详细回合日志（默认开启） |
 
 ***
 
@@ -205,18 +201,28 @@ python main.py single --seed 42 --fixed-order
 python main.py multi --group B -n 100 --seed 42
 
 # 下半场 A 组续跑（同组继承位置）
-python main.py second -s test_state_early.json --group A --seed 42
+python main.py single -s presets/a_early.json --group A --seed 42
 
-# 下半场 B 组全新起跑
-python main.py second -s test_state_early.json --group B --seed 42
+# 下半场 B 组全新起跑（异组，cell 0 起跑）
+python main.py single -s presets/a_early.json --group B --seed 42
+
+# 下半场 B 组续跑（同组，继承位置/技能）
+python main.py single -s presets/b_finish.json --group B --seed 42
 
 # 下半场 B 组多次预测
-python main.py second -s test_state_early.json --group B -n 100 --seed 42
+python main.py multi -s presets/b_finish.json --group B -n 100 --seed 42
 ```
 
 ***
 
 ## 更新内容
+
+### v2.6
+
+- 统一: CLI 命令统一为 `single`/`multi`，加 `-s` 文件即下半场，移除 `second`/`predict` 子命令。
+- 修改: 爱弥斯「中点传送」从整局一次改为每圈触发一次（第一圈跨过 progress 16、第二圈跨过 progress 48 均可触发）。
+- 新增: `presets/` 目录统一存放下半场预设配置文件，包含 A 组早期/后期、B 组终点等场景。
+- 优化: 预设文件去除固定种子，默认随机种子运行，仅 CLI `--seed` 参数可固定。
 
 ### v2.51
 
@@ -336,6 +342,10 @@ SKILL_CONFIG = {
 
 ```
 ├── main.py                  # CLI 入口
+├── presets/                 # 下半场预设快照
+│   ├── a_early.json         # A组上半场早期
+│   ├── a_late.json          # A组上半场后期（达妮娅已胜）
+│   └── b_finish.json        # B组终点局势
 ├── config/
 │   └── default_config.py    # 默认配置（团子、技能、装置、组别）
 ├── core/

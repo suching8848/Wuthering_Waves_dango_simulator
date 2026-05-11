@@ -1,0 +1,21 @@
+{
+  "round": 8,
+  "dangos": {
+    "kelaite":    {"cell": 0,  "progress": 32},
+    "linnai":     {"cell": 31, "progress": 31},
+    "qianxiao":   {"cell": 31, "progress": 31},
+    "moning":     {"cell": 30, "progress": 30},
+    "aimisi":     {"cell": 30, "progress": 30},
+    "shouanren":  {"cell": 29, "progress": 29}
+  },
+  "stacks": {
+    "0":  ["budaiwang", "kelaite"],
+    "31": ["linnai", "qianxiao"],
+    "30": ["moning", "aimisi"]
+  },
+  "boss": {
+    "cell": 0,
+    "progress": 24,
+    "spawned": true
+  }
+}
