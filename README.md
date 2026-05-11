@@ -1,6 +1,6 @@
 # 团子竞速模拟器
 
-当前版本：v2.6
+当前版本：v2.61
 
 基于《鸣潮》团子活动规则的回合制竞速模拟器，支持上半场/下半场两种模式，多个团子组别，单次过程回放和多次统计分析。
 
@@ -217,6 +217,10 @@ python main.py multi -s presets/b_finish.json --group B -n 100 --seed 42
 
 ## 更新内容
 
+### v2.61
+
+- 新增: `menu.py` 交互式菜单界面，无需记忆命令，逐级选择即可运行。
+
 ### v2.6
 
 - 统一: CLI 命令统一为 `single`/`multi`，加 `-s` 文件即下半场，移除 `second`/`predict` 子命令。
@@ -341,6 +345,7 @@ SKILL_CONFIG = {
 ## 项目结构
 
 ```
+├── menu.py                  # 交互式菜单界面
 ├── main.py                  # CLI 入口
 ├── presets/                 # 下半场预设快照
 │   ├── a_early.json         # A组上半场早期
