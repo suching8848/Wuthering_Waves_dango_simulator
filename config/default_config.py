@@ -16,13 +16,14 @@ RIFT_CELLS = {6, 20}
 # ============================================================
 DANGO_IDS_A = ["daniya", "phoebe", "siglica", "feixue", "luhesi", "katixiya"]
 DANGO_IDS_B = ["qianxiao", "moning", "linnai", "aimisi", "shouanren", "kelaite"]
-DANGO_IDS = DANGO_IDS_A + DANGO_IDS_B
+DANGO_IDS_C = ["aogusita", "younuo", "fuluoluo", "changli", "jinxi", "kakaluo"]
+DANGO_IDS = DANGO_IDS_A + DANGO_IDS_B + DANGO_IDS_C
 BOSS_ID = "budaiwang"
 
 DANGO_GROUPS = {
     "A": DANGO_IDS_A,
     "B": DANGO_IDS_B,
-    # "C": DANGO_IDS_C,  # 取消注释并定义即可添加新组
+    "C": DANGO_IDS_C,
 }
 
 DANGOS_CONFIG = {
@@ -100,6 +101,43 @@ DANGOS_CONFIG = {
         "dice_range": (1, 3),
         "group": "B",
     },
+    # C组
+    "aogusita": {
+        "name": "奥古斯塔团子",
+        "is_boss": False,
+        "dice_range": (1, 3),
+        "group": "C",
+    },
+    "younuo": {
+        "name": "尤诺团子",
+        "is_boss": False,
+        "dice_range": (1, 3),
+        "group": "C",
+    },
+    "fuluoluo": {
+        "name": "弗洛洛团子",
+        "is_boss": False,
+        "dice_range": (1, 3),
+        "group": "C",
+    },
+    "changli": {
+        "name": "长离团子",
+        "is_boss": False,
+        "dice_range": (1, 3),
+        "group": "C",
+    },
+    "jinxi": {
+        "name": "今汐团子",
+        "is_boss": False,
+        "dice_range": (1, 3),
+        "group": "C",
+    },
+    "kakaluo": {
+        "name": "卡卡罗团子",
+        "is_boss": False,
+        "dice_range": (1, 3),
+        "group": "C",
+    },
     "budaiwang": {
         "name": "布大王团子",
         "is_boss": True,
@@ -159,5 +197,22 @@ SKILL_CONFIG = {
     "shouanren": {},
     "kelaite": {
         "double_probability": 0.28,
+    },
+    # C组技能配置
+    "aogusita": {},
+    "younuo": {
+        "midpoint": 16,
+    },
+    "fuluoluo": {
+        "extra_steps": 3,
+    },
+    "changli": {
+        "delay_probability": 0.65,
+    },
+    "jinxi": {
+        "rise_probability": 0.4,
+    },
+    "kakaluo": {
+        "extra_steps": 3,
     },
 }

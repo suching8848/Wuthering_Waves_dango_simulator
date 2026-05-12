@@ -3,7 +3,7 @@
 import argparse
 import json
 import sys
-from config import DANGOS_CONFIG, SKILL_CONFIG, SIMULATION_CONFIG, DANGO_IDS_A, DANGO_IDS_B
+from config import DANGOS_CONFIG, SKILL_CONFIG, SIMULATION_CONFIG, DANGO_IDS_A, DANGO_IDS_B, DANGO_IDS_C
 from core.simulator import Simulator
 
 
@@ -63,6 +63,8 @@ def run_single_mode(args, config: dict) -> None:
         if args.fixed_order:
             if group == "B":
                 initial_order = list(DANGO_IDS_B)
+            elif group == "C":
+                initial_order = list(DANGO_IDS_C)
             else:
                 initial_order = list(DANGO_IDS_A)
             print(f"使用固定初始顺序: {initial_order}")
@@ -118,13 +120,13 @@ def main():
     single_parser.add_argument("-s", "--state", type=str, default=None, help="上半场结束状态的JSON文件路径（可选，指定后运行下半场）")
     single_parser.add_argument("--seed", type=int, default=None, help="随机种子")
     single_parser.add_argument("--fixed-order", action="store_true", help="使用固定初始堆叠顺序")
-    single_parser.add_argument("--group", type=str, choices=["A", "B"], default=None, help="选择团子组别 (A组/B组)，上半场默认A，下半场默认B")
+    single_parser.add_argument("--group", type=str, choices=["A", "B", "C"], default=None, help="选择团子组别 (A组/B组/C组)，上半场默认A，下半场默认B")
 
     multi_parser = subparsers.add_parser("multi", help="多次模拟（-s 指定快照则运行下半场）")
     multi_parser.add_argument("-n", "--num-simulations", type=int, default=1000, help="模拟次数")
     multi_parser.add_argument("-s", "--state", type=str, default=None, help="上半场结束状态的JSON文件路径（可选，指定后运行下半场）")
     multi_parser.add_argument("--seed", type=int, default=None, help="随机种子")
-    multi_parser.add_argument("--group", type=str, choices=["A", "B"], default=None, help="选择团子组别 (A组/B组)，上半场默认A，下半场默认B")
+    multi_parser.add_argument("--group", type=str, choices=["A", "B", "C"], default=None, help="选择团子组别 (A组/B组/C组)，上半场默认A，下半场默认B")
 
     args = parser.parse_args()
 

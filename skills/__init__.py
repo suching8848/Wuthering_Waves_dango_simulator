@@ -14,6 +14,12 @@ from .linnai_skill import LinnaiSkill
 from .aimisi_skill import AimisiSkill
 from .shouanren_skill import ShouanrenSkill
 from .kelaite_skill import KelaiteSkill
+from .aogusita_skill import AogusitaSkill
+from .younuo_skill import YounuoSkill
+from .fuluoluo_skill import FuluoluoSkill
+from .changli_skill import ChangliSkill
+from .jinxi_skill import JinxiSkill
+from .kakaluo_skill import KakaluoSkill
 
 SKILL_MAPPING = {
     "daniya": DaniyaSkill,
@@ -29,6 +35,12 @@ SKILL_MAPPING = {
     "aimisi": AimisiSkill,
     "shouanren": ShouanrenSkill,
     "kelaite": KelaiteSkill,
+    "aogusita": AogusitaSkill,
+    "younuo": YounuoSkill,
+    "fuluoluo": FuluoluoSkill,
+    "changli": ChangliSkill,
+    "jinxi": JinxiSkill,
+    "kakaluo": KakaluoSkill,
 }
 
 __all__ = [
@@ -46,5 +58,11 @@ __all__ = [
     "AimisiSkill",
     "ShouanrenSkill",
     "KelaiteSkill",
+    "AogusitaSkill",
+    "YounuoSkill",
+    "FuluoluoSkill",
+    "ChangliSkill",
+    "JinxiSkill",
+    "KakaluoSkill",
     "SKILL_MAPPING",
 ]

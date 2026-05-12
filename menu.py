@@ -25,7 +25,7 @@ def ask(msg: str, default: str = "", choices: list[str] | None = None) -> str:
 def show_banner():
     print()
     print("=" * 48)
-    print("  团子竞速模拟器 v2.61")
+    print("  团子竞速模拟器 v2.7")
     print("=" * 48)
     print()
 
@@ -94,9 +94,14 @@ def ask_group() -> str:
     print()
     print("  1. A组")
     print("  2. B组")
+    print("  3. C组")
     print()
-    g = ask("请选择组别 [1]: ", "1", choices=["1", "2"])
-    return "B" if g == "2" else "A"
+    g = ask("请选择组别 [1]: ", "1", choices=["1", "2", "3"])
+    if g == "2":
+        return "B"
+    elif g == "3":
+        return "C"
+    return "A"
 
 
 def pick_preset() -> str:

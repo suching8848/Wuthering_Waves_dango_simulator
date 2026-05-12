@@ -207,6 +207,16 @@ class GameEngine:
         game_state.rng.shuffle(active_ids)
         game_state.current_order = active_ids
 
+        act_last_ids = []
+        for dango_id in game_state.current_order:
+            d = game_state.get_dango(dango_id)
+            if d and d.state.pop("_act_last", False):
+                act_last_ids.append(dango_id)
+        for dango_id in act_last_ids:
+            if dango_id in game_state.current_order:
+                game_state.current_order.remove(dango_id)
+                game_state.current_order.append(dango_id)
+
     def _roll_all_dice(self, game_state: GameState) -> None:
         game_state.dice_results = {}
         for dango_id in game_state.current_order:
@@ -338,32 +348,50 @@ class GameEngine:
 
     def _move_boss(self, game_state: GameState, boss: Dango, steps: int, move_log: dict) -> None:
         stack_manager = game_state.stack_manager
-        current_cell = stack_manager.get_dango_cell(boss.id)
-        if current_cell is None:
-            current_cell = boss.cell
+        bl = game_state.board.length
 
-        moving_group = [boss.id]
+        all_moved_ids = [boss.id]
         if self.boss_carries_upper_stack:
-            moving_group += stack_manager.get_upper_stack(boss.id)
+            all_moved_ids += stack_manager.get_upper_stack(boss.id)
 
-        new_cell = (current_cell - steps) % game_state.board.length
-        move_log["target_cell_before_device"] = new_cell
-        move_log["moved_group"] = moving_group
+        for _ in range(steps):
+            current_cell = stack_manager.get_dango_cell(boss.id)
+            if current_cell is None:
+                current_cell = boss.cell
 
-        for dango_id in moving_group:
-            stack_manager.remove_from_stack(dango_id)
+            new_cell = (current_cell - 1) % bl
 
-        for dango_id in moving_group[1:]:
-            stack_manager.add_to_stack_top(dango_id, new_cell)
-        stack_manager.add_to_stack_bottom(boss.id, new_cell)
+            upper_ids = stack_manager.get_upper_stack(boss.id)
 
-        boss.advance_backward(steps, game_state.board.length)
-        for dango_id in moving_group[1:]:
-            carried_dango = game_state.get_dango(dango_id)
-            if carried_dango is None:
-                continue
-            carried_dango.advance(-steps, game_state.board.length)
+            for d_id in [boss.id] + upper_ids:
+                stack_manager.remove_from_stack(d_id)
 
+            existing_stack = list(stack_manager.get_stack(new_cell))
+            for d_id in existing_stack:
+                stack_manager.remove_from_stack(d_id)
+                if d_id not in all_moved_ids:
+                    all_moved_ids.append(d_id)
+
+            stack_manager.add_to_stack_bottom(boss.id, new_cell)
+
+            for d_id in existing_stack:
+                stack_manager.add_to_stack_top(d_id, new_cell)
+
+            for d_id in upper_ids:
+                stack_manager.add_to_stack_top(d_id, new_cell)
+
+            boss.advance_backward(1, bl)
+            for d_id in upper_ids:
+                carried = game_state.get_dango(d_id)
+                if carried:
+                    carried.advance(-1, bl)
+            for d_id in existing_stack:
+                picked = game_state.get_dango(d_id)
+                if picked and not picked.is_boss:
+                    picked.advance(-1, bl)
+
+        move_log["target_cell_before_device"] = boss.cell
+        move_log["moved_group"] = all_moved_ids
         move_log["final_cell"] = boss.cell
         move_log["final_progress"] = boss.progress
 

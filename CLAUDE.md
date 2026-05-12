@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project overview
 
-团子竞速模拟器 — a turn-based racing simulator for the Dango mini-game from _Wuthering Waves_ (鸣潮). 6 normal dangos + 1 boss dango race on a 32-cell circular track per half. Two groups of 6 dangos (A组 / B组). Python 3.10+, zero external dependencies.
+团子竞速模拟器 — a turn-based racing simulator for the Dango mini-game from _Wuthering Waves_ (鸣潮). 6 normal dangos + 1 boss dango race on a 32-cell circular track per half. Three groups of 6 dangos (A组 / B组 / C组). Python 3.10+, zero external dependencies.
 
 ## Commands
 
@@ -12,10 +12,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # === 上半场 (first half) — 全新比赛 ===
 python main.py single                             # A组单次，完整过程回放
 python main.py single --group B                   # B组单次
+python main.py single --group C                   # C组单次
 python main.py single --seed 42 --fixed-order     # 固定种子 + 固定初始堆叠
 
 python main.py multi                              # A组多次统计 (默认1000局)
 python main.py multi --group B -n 100 --seed 42   # B组100局统计
+python main.py multi --group C -n 100 --seed 42   # C组100局统计
 
 # === 下半场 (second half) — 加 -s 快照文件即可 ===
 python main.py single -s presets/a_early.json --group A        # A组续跑 (同组，继承位置/技能)
@@ -25,6 +27,35 @@ python main.py multi -s presets/b_finish.json --group B -n 100 --seed 42  # 多�
 ```
 
 No build step, no test suite, no linter configured.
+
+**Interactive menu** (`python menu.py`) provides a guided selection UI for all modes; it builds and runs the equivalent `main.py` command via subprocess.
+
+## Snapshot JSON format
+
+Snapshot files (both presets and save output) follow this structure:
+
+```json
+{
+  "round": 2,
+  "first_half_winner": "daniya",
+  "seed": null,
+  "dangos": {
+    "daniya": {"progress": 12, "cell": 12, "state": {"lastDice": 3}},
+    "phoebe": {"progress": 8, "cell": 8, "state": {}},
+    "...": {}
+  },
+  "stacks": {
+    "0": ["budaiwang", "kelaite"],
+    "12": ["daniya"]
+  }
+}
+```
+
+- `round` — the round number the snapshot was taken at (second half starts from `round + 1`)
+- `first_half_winner` — who won the first half (display only, not used mechanically)
+- `seed` — typically `null` in presets; CLI `--seed` overwrites it
+- `dangos[].state` — per-dango skill state dict restored on same-group continue
+- `stacks` — maps `cell` (string key) to bottom-to-top list of dango IDs at that cell
 
 ## Preset snapshots
 
@@ -62,7 +93,7 @@ These files contain no fixed `seed` — simulations use random seeds unless `--s
   - `StackManager` — manages stack state per cell (dict of `cell → list[dango_id]` bottom-to-top). Handles group movement (bottom dango carries upper stack), cell shuffling (rift device), and boss-at-bottom enforcement.
   - `Simulator` — thin wrapper: creates engine, runs single/multi (上半场) or second-half (下半场) simulations, delegates logging. `run_prediction()` and `run_prediction_multi()` accept `dango_group` and pass it to `create_game_state_from_snapshot()`.
 
-- **`skills/`** — Each dango has a skill class inheriting from `BaseSkill`. The base class provides hook methods that the engine calls at specific phases. Skills store per-dango state in `dango.state` dict (e.g., `lastDice`, `pending_extra_steps`, `skill_activated`, `metBoss`). `SKILL_MAPPING` in `__init__.py` maps all 13 dango IDs to skill classes.
+- **`skills/`** — Each dango has a skill class inheriting from `BaseSkill`. The base class provides hook methods that the engine calls at specific phases. Skills store per-dango state in `dango.state` dict (e.g., `lastDice`, `pending_extra_steps`, `skill_activated`, `metBoss`). `SKILL_MAPPING` in `__init__.py` maps all 19 dango IDs to skill classes.
 
   **Hook execution order within a round:**
   1. `on_round_start` — clear per-round state
@@ -96,16 +127,29 @@ These files contain no fixed `seed` — simulations use random seeds unless `--s
   | 稳定投掷 | 守岸人 | Dice only 2 or 3 (via `dice_range: (2,3)`) |
   | 双倍冲刺 | 珂莱塔 | 28% chance double steps |
 
+      **C-group skills (6):**
+      | Skill | Dango | Behavior |
+      |-------|-------|----------|
+      | 顶端蛰伏 | 奥古斯塔 | At round start, if at top of stack → skip this round, act last next round |
+      | 排名聚合 | 尤诺 | Once per game: after crossing midpoint (16), teleport rank-adjacent non-boss dangos to own cell. Stack order preserves pre-teleport ranking. |
+      | 底层突破 | 弗洛洛 | At round start, if at bottom of stack → +3 steps on move |
+      | 蓄势待发 | 长离 | If dangos stacked below, 65% chance to act last next round |
+      | 凌越巅峰 | 今汐 | If dangos stacked above, 40% chance to rise to top of stack |
+      | 末位追击 | 卡卡罗 | If last place at start of move → +3 steps |
+
 - **`utils/`** — `GameLogger` prints round-by-round output for single mode; `StatsLogger` prints aggregate statistics for multi mode.
 
 ### Key design details
 
 - **Two-mode system:** 上半场 (`single`/`multi`) starts a fresh race. 下半场 (`single -s` / `multi -s`) continues from a first-half snapshot JSON. Any group can be used in either mode. Same-group second half restores dango positions/stacks/skill-states from snapshot; cross-group second half starts current group fresh at cell 0. Boss is shared across halves; in second half it always resets and re-enters at relative round 3. Goal: `board_length` (上半场), `board_length * 2` (下半场).
-- **Boss movement is reverse:** Boss moves from finish toward start. `advance_backward(steps)` sets `progress += steps` but `cell = (-progress) % length`. When the boss carries normal dangos backward, they use `advance(-steps)` (negative progress delta).
+- **`_act_last` deferral:** Skills (奥古斯塔, 长离) set `dango.state["_act_last"] = True` to defer a dango to the end of action order next round. `_determine_action_order` pops and applies this flag after shuffling, moving flagged dangos to the end of `current_order`.
+- **Action order for second-half round 1:** In the code, when `is_second_half and round_no == boss_start_round - 2`, the order is reverse of initial stack (matching first-half round 1). Since `boss_start_round = snapshot_round + 3`, this condition fires at `round_no == snapshot_round + 1`, which is exactly the first round of the second half. So second-half round 1 always uses reverse initial stack, same as a fresh game.
+- **Boss movement is step-by-step:** Boss moves from finish toward start, one cell at a time. For each cell arrived at, boss picks up all dangos on that cell and places them on top of itself (bottom-to-top from the original stack). If steps remain, boss carries all collected dangos and continues. `new_cell = (current_cell - 1) % length` per step. `advance_backward(1)` for boss, `advance(-1)` for carried dangos (negative progress delta means backward displacement).
 - **Boss stack position:** Boss is always at the bottom of its cell's stack (`add_to_stack_bottom`). Rift shuffling preserves this.
+- **`boss_carries_upper_stack`:** Defaults to `True` in `SIMULATION_CONFIG` but `main.py`'s `create_config` falls back to `False`. When enabled, the boss carries dangos already stacked above it when it starts moving. With the new step-by-step movement, the boss always picks up dangos from cells it passes through regardless of this setting — this config only affects the initial upper stack.
 - **Boss teleport:** After all 6 normal dangos have met the boss (tracked in `boss_met_dangos`), the boss teleports to cell 0 and the set clears.
 - **Device triggers happen after move:** `_check_device_trigger` runs after the dango lands, may apply additional displacement (boost/trap) or stack shuffle (rift). The `final_cell` in the move log reflects post-device position.
 - **Winner detection:** A normal dango wins when `progress >= goal` AND it is at the top of its stack (not buried under another normal dango). Goal is `board_length` for first half, `board_length * 2` for second half.
 - **Siglica marking:** Happens during `_roll_all_dice`, specifically after siglica's own roll. Marked dangos get -1 step (min 1) during `_execute_single_move`. Marks clear each round at `_on_round_start`. Does NOT fire in round 1.
 - **Feixue meet-boss check:** Uses `dango_cell >= boss_cell` (not just equality), so meeting is triggered once feixue's cell catches up to or passes the boss.
-- **Group system:** `config/default_config.py` defines groups via `DANGO_GROUPS` dict (currently "A" and "B"). Each dango in `DANGOS_CONFIG` has a `group` field. Adding a new group requires: (1) define `DANGO_IDS_X` list, (2) add to `DANGO_GROUPS`, (3) add dango entries to `DANGOS_CONFIG` with `group="X"`, (4) add skill configs to `SKILL_CONFIG`, (5) create skill files and register in `skills/__init__.py`. `GameEngine._initialize_dangos(game_state, group)` filters by `group` field; boss (`group="boss"`) is always included.
+- **Group system:** `config/default_config.py` defines groups via `DANGO_GROUPS` dict (currently "A", "B", "C"). Each dango in `DANGOS_CONFIG` has a `group` field. Adding a new group requires: (1) define `DANGO_IDS_X` list, (2) add to `DANGO_GROUPS`, (3) add dango entries to `DANGOS_CONFIG` with `group="X"`, (4) add skill configs to `SKILL_CONFIG`, (5) create skill files and register in `skills/__init__.py`. `GameEngine._initialize_dangos(game_state, group)` filters by `group` field; boss (`group="boss"`) is always included.
